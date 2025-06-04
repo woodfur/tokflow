@@ -204,15 +204,9 @@ const Upload = () => {
                   
                   <div className="flex items-center space-x-4">
                     <div className="flex-shrink-0">
-                      {selectedFile.type.startsWith('video/') ? (
-                        <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-accent-500 rounded-2xl flex items-center justify-center">
-                          <PlayIcon className="w-8 h-8 text-white" />
-                        </div>
-                      ) : (
-                        <div className="w-16 h-16 bg-gradient-to-br from-accent-500 to-primary-500 rounded-2xl flex items-center justify-center">
-                          <PhotoIcon className="w-8 h-8 text-white" />
-                        </div>
-                      )}
+                      <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-accent-500 rounded-2xl flex items-center justify-center">
+                        <PlayIcon className="w-8 h-8 text-white" />
+                      </div>
                     </div>
                     
                     <div className="flex-1 min-w-0">
