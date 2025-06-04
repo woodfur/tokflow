@@ -57,7 +57,7 @@ const CreateVideo = () => {
   };
 
   const handlePost = async (e) => {
-    /* const fileTypes = ["video/mp4", "video/webm", "video/ogg"]; */
+    const fileTypes = ["video/mp4", "video/webm", "video/ogg"];
 
     if (caption && topic && selectedFile && tagCheck) {
       setLoading(true);
@@ -223,6 +223,7 @@ const CreateVideo = () => {
                     <input
                       type="file"
                       name="upload-video"
+                      accept="video/*"
                       ref={selectedFileRef}
                       className="w-0 h-0"
                       onChange={onSelectedFile}

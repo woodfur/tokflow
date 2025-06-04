@@ -5,9 +5,16 @@ const useSelectFile = () => {
 
   const onSelectedFile = (event) => {
     const reader = new FileReader();
+    const file = event.target.files?.[0];
 
-    if (event.target.files?.[0]) {
-      reader.readAsDataURL(event.target.files[0]);
+    if (file) {
+      // Check if file is a video
+      if (file.type.startsWith('video/')) {
+        reader.readAsDataURL(file);
+      } else {
+        alert('Please select a valid video file.');
+        return;
+      }
     }
 
     reader.onload = (readerEvent) => {

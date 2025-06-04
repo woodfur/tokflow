@@ -9,10 +9,7 @@ export default function Home() {
       <Head>
         <title>TokFlo - Modern Social Experience</title>
         <meta name="description" content="Experience the future of social media with TokFlo" />
-        <link
-          rel="icon"
-          href="https://th.bing.com/th/id/R.67bc88bb600a54112e8a669a30121273?rik=vsc22vMfmcSGfg&pid=ImgRaw&r=0"
-        />
+        <link rel="icon" href="/tokflo-favicon.svg" type="image/svg+xml" />
       </Head>
       
       {/* "For you" text - Top left overlay */}
