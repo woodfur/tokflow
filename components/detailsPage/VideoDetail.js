@@ -17,19 +17,18 @@ import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/router";
 
 import {
-  BsFillPlayFill,
-  BsReddit,
-  BsPinterest,
-  BsFillChatQuoteFill,
-} from "react-icons/bs";
-import { GoVerified } from "react-icons/go";
-import { HiVolumeOff, HiVolumeUp } from "react-icons/hi";
-import { IoIosShareAlt } from "react-icons/io";
-import { MdOutlineCancel, MdEmail } from "react-icons/md";
-import { RiWhatsappLine } from "react-icons/ri";
-import { AiOutlineTwitter, AiFillLinkedin } from "react-icons/ai";
-import { GrFacebookOption } from "react-icons/gr";
-import { FaTelegramPlane } from "react-icons/fa";
+  PlayIcon as BsFillPlayFill,
+  ChatBubbleBottomCenterIcon as BsReddit,
+  MapPinIcon as BsPinterest,
+  ChatBubbleLeftEllipsisIcon as BsFillChatQuoteFill,
+} from "@heroicons/react/24/solid";
+import { CheckBadgeIcon, SpeakerXMarkIcon, SpeakerWaveIcon } from "@heroicons/react/24/outline";
+import { ShareIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
+import { ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
+import { AtSymbolIcon, BuildingOfficeIcon } from "@heroicons/react/24/outline";
+import { UserGroupIcon } from "@heroicons/react/24/outline";
+import { PaperAirplaneIcon } from "@heroicons/react/24/outline";
 
 import { auth, firestore } from "../../firebase/firebase";
 import Comments from "../Comments";
@@ -38,12 +37,12 @@ const dropDwonMenuItems = [
   {
     name: "Share to Telegram",
     color: "bg-[#1DA1F2]",
-    icon: <FaTelegramPlane className="text-white" />,
+    icon: <PaperAirplaneIcon className="text-white" />,
   },
   {
     name: "Share to Telegram",
     color: "bg-blue-700",
-    icon: <AiFillLinkedin className="text-white" />,
+    icon: <BuildingOfficeIcon className="text-white" />,
   },
   {
     name: "Share to Reddit",
@@ -63,7 +62,7 @@ const dropDwonMenuItems = [
   {
     name: "Share to Email",
     color: "bg-[#3BB9FF]",
-    icon: <MdEmail className="text-white" />,
+    icon: <EnvelopeIcon className="text-white" />,
   },
 ];
 
@@ -245,7 +244,7 @@ const VideoDetail = ({
           <div className="relative flex-2 w-[1000px] lg:w-9/12 flex justify-center items-center bg-blurred-img bg-no-repeat bg-cover bg-center bg-gradient-to-r from-gray-900 to-gray-700">
             <div className="opacity-90 absolute top-6 left-2 lg:left-6 flex gap-6 z-50">
               <p className="cursor-pointer " onClick={() => router.back()}>
-                <MdOutlineCancel className="text-white text-[35px] hover:opacity-90" />
+                <XMarkIcon className="text-white text-[35px] hover:opacity-90" />
               </p>
             </div>
             <div className="relative">
@@ -256,6 +255,8 @@ const VideoDetail = ({
                   loop
                   src={video}
                   className=" h-full cursor-pointer"
+                  autoPlay
+                  muted
                 ></video>
               </div>
 
@@ -270,11 +271,11 @@ const VideoDetail = ({
             <div className="absolute bottom-5 lg:bottom-10 right-5 lg:right-10  cursor-pointer">
               {isVideoMuted ? (
                 <button onClick={() => setIsVideoMuted(false)}>
-                  <HiVolumeOff className="text-white text-3xl lg:text-4xl" />
+                  <SpeakerXMarkIcon className="text-white text-3xl lg:text-4xl" />
                 </button>
               ) : (
                 <button onClick={() => setIsVideoMuted(true)}>
-                  <HiVolumeUp className="text-white text-3xl lg:text-4xl" />
+                  <SpeakerWaveIcon className="text-white text-3xl lg:text-4xl" />
                 </button>
               )}
             </div>
@@ -292,7 +293,7 @@ const VideoDetail = ({
                 />
                 <div>
                   <div className="text-xl font-bold lowercase tracking-wider flex gap-2 items-center justify-start">
-                    {username} <GoVerified className="text-blue-400 text-xl" />
+                    {username} <CheckBadgeIcon className="text-blue-400 text-xl" />
                   </div>
                   <div className="absolute flex ml-64 top-20 justify-end">
                     <button
@@ -486,7 +487,7 @@ const VideoDetail = ({
                           whileTap={{ scale: 0.9 }}
                           className="bg-green-500 rounded-full px-2 py-2"
                         >
-                          <RiWhatsappLine className="text-white text-[18px]" />
+                          <ChatBubbleLeftRightIcon className="text-white text-[18px]" />
                         </motion.div>
                       </div>
                       <div className="mb-4 flex items-center justify-end cursor-pointer">
@@ -495,7 +496,7 @@ const VideoDetail = ({
                           whileTap={{ scale: 0.9 }}
                           className="bg-blue-500 rounded-full px-2 py-2"
                         >
-                          <GrFacebookOption className="text-white text-[18px]" />
+                          <UserGroupIcon className="text-white text-[18px]" />
                         </motion.div>
                       </div>
                       <div className="mb-4 flex items-center justify-end cursor-pointer">
@@ -504,7 +505,7 @@ const VideoDetail = ({
                           whileTap={{ scale: 0.9 }}
                           className="bg-[#1DA1F2] rounded-full px-2 py-2"
                         >
-                          <AiOutlineTwitter className="text-white text-[18px]" />
+                          <AtSymbolIcon className="text-white text-[18px]" />
                         </motion.div>
                       </div>
                       <div
@@ -517,7 +518,7 @@ const VideoDetail = ({
                           whileTap={{ scale: 0.9 }}
                           className="bg-transparent hover:bg-gray-300 rounded-full px-2 py-2"
                         >
-                          <IoIosShareAlt className="text-black text-[18px]" />
+                          <ShareIcon className="text-black text-[18px]" />
                         </motion.div>
                       </div>
                     </div>

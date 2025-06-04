@@ -1,90 +1,151 @@
-import React, { useState, useEffect } from "react";
 import { faker } from "@faker-js/faker";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { motion } from "framer-motion";
 import { useRouter } from "next/router";
-
+import React, { useEffect, useState } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { PlusIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { auth } from "../firebase/firebase";
 
 const Btns = () => {
   const [user] = useAuthState(auth);
   const router = useRouter();
-  const [suggestions, setSuggestions] = useState([]);
+  const [randomUsers, setRandomUsers] = useState([]);
+  const [followedUsers, setFollowedUsers] = useState(new Set());
+
+  const handleChangePage = (userId) => {
+    if (user) {
+      router.push({
+        pathname: `user/${userId}`,
+        query: {
+          userId: userId,
+        },
+      });
+    } else {
+      router.push("/auth/signin");
+    }
+  };
+
+  const handleFollow = (e, userId) => {
+    e.stopPropagation();
+    if (!user) {
+      router.push("/auth/signin");
+      return;
+    }
+    
+    setFollowedUsers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
-    const suggestions = [...Array(5)].map((_, i) => ({
-      userId: faker.datatype.uuid(),
-      username: faker.internet.userName(),
-      avatar: faker.image.avatar(),
-      id: i,
-    }));
-    setSuggestions(suggestions);
+    const users = [];
+    for (let i = 0; i < 5; i++) {
+      users.push({
+        id: faker.datatype.uuid(),
+        name: faker.name.fullName(),
+        avatar: faker.image.avatar(),
+        username: faker.internet.userName(),
+        followers: faker.datatype.number({ min: 100, max: 50000 }),
+        isVerified: faker.datatype.boolean(),
+      });
+    }
+    setRandomUsers(users);
   }, []);
-  return (
-    <>
-      <div className="btns">
-        <a href="#" className="flex gap-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className="w-6 h-6 text-pink-500"
-          >
-            <path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z" />
-            <path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z" />
-          </svg>
-          <span>For You</span>
-        </a>
-        <a href="#" className="flex gap-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="w-6 h-6"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
-            />
-          </svg>
-          <span>Following</span>
-        </a>
-        <a href="#" className="flex gap-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="w-6 h-6"
-          >
-            <path
-              strokeLinecap="round"
-              d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"
-            />
-          </svg>
-          <span>Live</span>
-        </a>
-      </div>
-      {!user && (
-        <div className="login">
-          <p>Log in to follow creators, like videos, and view comments</p>
-          <button onClick={() => router.push("/auth/signin")}>Log in</button>
-        </div>
-      )}
 
-      <div className="accounts">
-        <p>Suggested accounts</p>
-        {suggestions.map((data, index) => (
-          <div className="user" key={index}>
-            <img src={data.avatar} alt="avatar" />
-            <h6 className="username">{data.username}</h6>
-          </div>
-        ))}
-      </div>
-    </>
+  const formatFollowers = (count) => {
+    if (count >= 1000000) {
+      return (count / 1000000).toFixed(1) + 'M';
+    } else if (count >= 1000) {
+      return (count / 1000).toFixed(1) + 'K';
+    }
+    return count.toString();
+  };
+
+  return (
+    <div className="space-y-3">
+      {randomUsers.map((suggestedUser, index) => {
+        const isFollowed = followedUsers.has(suggestedUser.id);
+        
+        return (
+          <motion.div
+            key={suggestedUser.id}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.1, duration: 0.3 }}
+            whileHover={{ scale: 1.02 }}
+            className="flex items-center justify-between p-3 rounded-2xl hover:bg-neutral-50/80 dark:hover:bg-neutral-800/80 transition-all duration-200 cursor-pointer group"
+            onClick={() => handleChangePage(suggestedUser.id)}
+          >
+            <div className="flex items-center space-x-3 flex-1 min-w-0">
+              <div className="relative flex-shrink-0">
+                <img
+                  className="w-12 h-12 rounded-full object-cover border-2 border-neutral-200 dark:border-neutral-700 group-hover:border-primary-300 transition-colors"
+                  src={suggestedUser.avatar}
+                  alt={suggestedUser.username}
+                />
+                {suggestedUser.isVerified && (
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 border-2 border-white rounded-full flex items-center justify-center">
+                    <CheckIcon className="w-2 h-2 text-white" />
+                  </div>
+                )}
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-1">
+                  <p className="font-semibold text-neutral-900 dark:text-neutral-100 truncate text-sm">
+                    @{suggestedUser.username.replace(/\s+/g, "").toLowerCase()}
+                  </p>
+                </div>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
+                  {suggestedUser.name}
+                </p>
+                <p className="text-xs text-neutral-400 dark:text-neutral-500">
+                  {formatFollowers(suggestedUser.followers)} followers
+                </p>
+              </div>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={(e) => handleFollow(e, suggestedUser.id)}
+              className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-200 flex items-center space-x-1 flex-shrink-0 ${
+                isFollowed
+                  ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                  : 'bg-primary-500 text-white hover:bg-primary-600 shadow-md hover:shadow-lg'
+              }`}
+            >
+              {isFollowed ? (
+                <>
+                  <CheckIcon className="w-3 h-3" />
+                  <span>Following</span>
+                </>
+              ) : (
+                <>
+                  <PlusIcon className="w-3 h-3" />
+                  <span>Follow</span>
+                </>
+              )}
+            </motion.button>
+          </motion.div>
+        );
+      })}
+      
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="w-full mt-4 py-3 text-primary-600 dark:text-primary-400 font-medium text-sm hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-2xl transition-colors"
+      >
+        See all suggestions
+      </motion.button>
+    </div>
   );
 };
 

@@ -1,41 +1,41 @@
-import { BsCode, BsEmojiSunglasses } from "react-icons/bs";
-import { GiCakeSlice, GiGalaxy, GiLipstick } from "react-icons/gi";
-import { FaPaw, FaMedal, FaGamepad } from "react-icons/fa";
+import { CodeBracketIcon, FaceSmileIcon } from "@heroicons/react/24/outline";
+import { CakeIcon, SparklesIcon, SwatchIcon } from "@heroicons/react/24/outline";
+import { TrophyIcon, PuzzlePieceIcon, HeartIcon } from "@heroicons/react/24/outline";
 
 import { Other } from "../components/icon/Other";
 
 export const topics = [
   {
     name: "development",
-    icon: <BsCode />,
+    icon: <CodeBracketIcon />,
   },
   {
     name: "comedy",
-    icon: <BsEmojiSunglasses />,
+    icon: <FaceSmileIcon />,
   },
   {
     name: "gaming",
-    icon: <FaGamepad />,
+    icon: <PuzzlePieceIcon />,
   },
   {
     name: "food",
-    icon: <GiCakeSlice />,
+    icon: <CakeIcon />,
   },
   {
     name: "dance",
-    icon: <GiGalaxy />,
+    icon: <SparklesIcon />,
   },
   {
     name: "beauty",
-    icon: <GiLipstick />,
+    icon: <SwatchIcon />,
   },
   {
     name: "animals",
-    icon: <FaPaw />,
+    icon: <HeartIcon />,
   },
   {
     name: "sports",
-    icon: <FaMedal />,
+    icon: <TrophyIcon />,
   },
   {
     name: "Other",

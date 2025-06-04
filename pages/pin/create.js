@@ -2,7 +2,7 @@ import React from "react";
 import Head from "next/head";
 
 import CreateVideo from "../../components/CreateVideo";
-import Header from "../../components/Header";
+
 
 const Create = () => {
   return (
@@ -15,8 +15,9 @@ const Create = () => {
           href="https://th.bing.com/th/id/R.67bc88bb600a54112e8a669a30121273?rik=vsc22vMfmcSGfg&pid=ImgRaw&r=0"
         />
       </Head>
-      <Header isShow={false} />
-      <CreateVideo />
+      <div className="bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800 min-h-screen pt-4 pb-20">
+        <CreateVideo />
+      </div>
     </>
   );
 };
