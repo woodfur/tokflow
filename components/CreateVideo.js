@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MdDelete } from "react-icons/md";
+import { TrashIcon } from "@heroicons/react/24/outline";
 import { useAuthState } from "react-firebase-hooks/auth";
 import {
   addDoc,
@@ -243,7 +243,7 @@ const CreateVideo = () => {
                         className=" rounded-full bg-gray-200 text-red-400 p-2 text-xl cursor-pointer outline-none hover:shadow-md transition-all duration-500 ease-in-out"
                         onClick={() => setSelectedFile("")}
                       >
-                        <MdDelete />
+                        <TrashIcon />
                       </button>
                     </div>
                   </div>
