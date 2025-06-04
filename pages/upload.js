@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import Head from "next/head";
 import { motion } from "framer-motion";
-import { CloudArrowUpIcon, VideoCameraIcon, PhotoIcon, XMarkIcon, PlayIcon } from "@heroicons/react/24/outline";
+import { CloudArrowUpIcon, VideoCameraIcon, XMarkIcon, PlayIcon } from "@heroicons/react/24/outline";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/router";
 
@@ -45,10 +45,10 @@ const Upload = () => {
   };
 
   const handleFileSelect = (file) => {
-    if (file && (file.type.startsWith('video/') || file.type.startsWith('image/'))) {
+    if (file && file.type.startsWith('video/')) {
       setSelectedFile(file);
     } else {
-      alert('Please select a valid video or image file.');
+      alert('Please select a valid video file.');
     }
   };
 
@@ -67,7 +67,7 @@ const Upload = () => {
 
   const handleUpload = async () => {
     if (!selectedFile || !caption.trim()) {
-      alert('Please select a file and add a caption.');
+      alert('Please select a video file and add a caption.');
       return;
     }
 
@@ -148,19 +148,18 @@ const Upload = () => {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="video/*,image/*"
+                  accept="video/*"
                   onChange={handleFileInputChange}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
                 
                 <div className="text-center">
-                  <div className="flex justify-center space-x-4 mb-4">
+                  <div className="flex justify-center mb-4">
                     <VideoCameraIcon className="w-12 h-12 text-primary-500" />
-                    <PhotoIcon className="w-12 h-12 text-accent-500" />
                   </div>
                   
                   <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
-                    Drag and drop your files here
+                    Drag and drop your video here
                   </h3>
                   
                   <p className="text-neutral-600 dark:text-neutral-400 mb-4">
@@ -172,11 +171,11 @@ const Upload = () => {
                     whileTap={{ scale: 0.95 }}
                     className="px-6 py-3 bg-gradient-to-r from-primary-500 to-accent-500 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
                   >
-                    Select Files
+                    Select Video
                   </motion.button>
                   
                   <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-4">
-                    Supports: MP4, MOV, AVI, JPG, PNG, GIF
+                    Supports: MP4, MOV, AVI, WebM
                   </p>
                 </div>
               </div>
