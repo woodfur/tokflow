@@ -4,9 +4,17 @@ import { motion } from "framer-motion";
 import { CloudArrowUpIcon, VideoCameraIcon, XMarkIcon, PlayIcon } from "@heroicons/react/24/outline";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/router";
+import {
+  addDoc,
+  collection,
+  doc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 import MobileNavigation from "../components/MobileNavigation";
-import { auth } from "../firebase/firebase";
+import { auth, firestore, storage } from "../firebase/firebase";
 
 const Upload = () => {
   const [user] = useAuthState(auth);
@@ -71,10 +79,34 @@ const Upload = () => {
       return;
     }
 
+    if (!user) {
+      alert('Please sign in to upload videos.');
+      return;
+    }
+
     setIsUploading(true);
     
-    // Simulate upload process
-    setTimeout(() => {
+    try {
+      // Create post document in Firestore
+      const docRef = await addDoc(collection(firestore, "posts"), {
+        userId: user?.uid,
+        username: user?.displayName,
+        caption: caption,
+        profileImage: user?.photoURL,
+        company: user?.email,
+        timestamp: serverTimestamp(),
+      });
+
+      // Upload video file to Firebase Storage
+      const videoRef = ref(storage, `posts/${docRef.id}/video`);
+      await uploadBytes(videoRef, selectedFile);
+      
+      // Get download URL and update post document
+      const downloadUrl = await getDownloadURL(videoRef);
+      await updateDoc(doc(firestore, "posts", docRef.id), {
+        video: downloadUrl,
+      });
+
       setIsUploading(false);
       alert('Upload successful!');
       setSelectedFile(null);
@@ -82,7 +114,14 @@ const Upload = () => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    }, 3000);
+      
+      // Redirect to home page
+      router.push('/');
+    } catch (error) {
+      console.error('Upload error:', error);
+      setIsUploading(false);
+      alert('Upload failed. Please try again.');
+    }
   };
 
   if (user === null) {
