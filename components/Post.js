@@ -9,9 +9,11 @@ import {
   deleteDoc,
   addDoc,
   serverTimestamp,
+  getDocs,
 } from "firebase/firestore";
+import { ref, deleteObject } from "firebase/storage";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth, firestore as db } from "../firebase/firebase";
+import { auth, firestore as db, storage } from "../firebase/firebase";
 import toast from "react-hot-toast";
 
 // Icons
@@ -61,6 +63,7 @@ const Post = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showDeleteMenu, setShowDeleteMenu] = useState(false);
 
   // Fetch likes
   useEffect(() => {
@@ -253,6 +256,46 @@ const Post = ({
     }
   };
 
+  const deletePost = async () => {
+    if (!user || user.uid !== userId) {
+      toast.error("You can only delete your own posts");
+      return;
+    }
+
+    const confirmDelete = window.confirm("Are you sure you want to delete this post? This action cannot be undone.");
+    if (!confirmDelete) return;
+
+    try {
+      // Delete video from Firebase Storage
+      if (video) {
+        const videoRef = ref(storage, video);
+        await deleteObject(videoRef).catch((error) => {
+          console.log("Video file may not exist:", error);
+        });
+      }
+
+      // Delete all subcollections (likes and comments)
+      const likesSnapshot = await getDocs(collection(db, "posts", id, "likes"));
+      const commentsSnapshot = await getDocs(collection(db, "posts", id, "comments"));
+      
+      const deletePromises = [
+        ...likesSnapshot.docs.map(doc => deleteDoc(doc.ref)),
+        ...commentsSnapshot.docs.map(doc => deleteDoc(doc.ref))
+      ];
+      
+      await Promise.all(deletePromises);
+
+      // Delete the main post document
+      await deleteDoc(doc(db, "posts", id));
+
+      toast.success("Post deleted successfully!");
+      router.push("/"); // Redirect to home page
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      toast.error("Failed to delete post");
+    }
+  };
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 20 }}
@@ -405,6 +448,38 @@ const Post = ({
             <BookmarkOutline className="w-7 h-7 text-white" />
           )}
         </motion.button>
+
+        {/* Delete Menu - Only show for post owner */}
+        {user && user.uid === userId && (
+          <div className="relative">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowDeleteMenu(!showDeleteMenu)}
+              className="p-3 rounded-full bg-black/30 backdrop-blur-sm"
+            >
+              <EllipsisHorizontalIcon className="w-7 h-7 text-white" />
+            </motion.button>
+
+            <AnimatePresence>
+              {showDeleteMenu && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8, x: 20 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.8, x: 20 }}
+                  className="absolute right-0 bottom-full mb-2 bg-white dark:bg-neutral-800 rounded-lg shadow-lg py-2 min-w-[120px]"
+                >
+                  <button
+                    onClick={deletePost}
+                    className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    Delete Post
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
 
       {/* Bottom Left Post Info - Positioned above navigation bar */}
