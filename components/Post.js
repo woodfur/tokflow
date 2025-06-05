@@ -65,6 +65,12 @@ const Post = ({
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
   const [showDeleteMenu, setShowDeleteMenu] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const [loadingReply, setLoadingReply] = useState(false);
+  const [replies, setReplies] = useState({});
+  const [commentLikes, setCommentLikes] = useState({});
+  const [userCommentLikes, setUserCommentLikes] = useState({});
 
   // Fetch likes
   useEffect(() => {
@@ -94,6 +100,64 @@ const Post = ({
       return unsubscribe;
     }
   }, [id]);
+
+  // Fetch replies for each comment
+  useEffect(() => {
+    if (id && comments.length > 0) {
+      const unsubscribes = [];
+      
+      comments.forEach((commentDoc) => {
+        const unsubscribe = onSnapshot(
+          collection(db, "posts", id, "comments", commentDoc.id, "replies"),
+          (snapshot) => {
+            setReplies(prev => ({
+              ...prev,
+              [commentDoc.id]: snapshot.docs
+            }));
+          }
+        );
+        unsubscribes.push(unsubscribe);
+      });
+      
+      return () => {
+        unsubscribes.forEach(unsubscribe => unsubscribe());
+      };
+    }
+  }, [id, comments]);
+
+  // Fetch comment likes
+  useEffect(() => {
+    if (!id || comments.length === 0) return;
+
+    const unsubscribeCommentLikes = [];
+
+    comments.forEach((commentDoc) => {
+      const likesRef = collection(db, "posts", id, "comments", commentDoc.id, "likes");
+      
+      const unsubscribe = onSnapshot(likesRef, (snapshot) => {
+        const likesData = snapshot.docs;
+        setCommentLikes(prev => ({
+          ...prev,
+          [commentDoc.id]: likesData
+        }));
+        
+        // Check if current user has liked this comment
+        if (user) {
+          const hasLiked = likesData.some(like => like.id === user.uid);
+          setUserCommentLikes(prev => ({
+            ...prev,
+            [commentDoc.id]: hasLiked
+          }));
+        }
+      });
+      
+      unsubscribeCommentLikes.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribeCommentLikes.forEach(unsubscribe => unsubscribe());
+    };
+  }, [id, comments, user]);
 
   // Auto-play video when component mounts and handle visibility
   useEffect(() => {
@@ -226,6 +290,64 @@ const Post = ({
       toast.error("Error adding comment");
     }
     setLoading(false);
+  };
+
+  // Reply functionality
+  const addReply = async (commentId) => {
+    if (!user) {
+      toast.error("Please sign in to reply");
+      return;
+    }
+    if (!replyText.trim()) return;
+
+    setLoadingReply(true);
+    try {
+      await addDoc(collection(db, "posts", id, "comments", commentId, "replies"), {
+        reply: replyText.trim(),
+        username: user.displayName,
+        profileImg: user.photoURL,
+        timestamp: serverTimestamp(),
+      });
+      setReplyText("");
+      setReplyingTo(null);
+      toast.success("Reply added!");
+    } catch (error) {
+      toast.error("Error adding reply");
+    }
+    setLoadingReply(false);
+  };
+
+  const handleReplyClick = (commentId) => {
+    setReplyingTo(commentId);
+    setReplyText("");
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
+    setReplyText("");
+  };
+
+  // Like comment functionality
+  const likeComment = async (commentId) => {
+    if (!user) {
+      toast.error("Please sign in to like comments");
+      return;
+    }
+    
+    try {
+      const commentLikeRef = doc(db, "posts", id, "comments", commentId, "likes", user.uid);
+      
+      if (userCommentLikes[commentId]) {
+        await deleteDoc(commentLikeRef);
+      } else {
+        await setDoc(commentLikeRef, {
+          username: user.displayName,
+          timestamp: serverTimestamp(),
+        });
+      }
+    } catch (error) {
+      toast.error("Error updating comment like");
+    }
   };
 
   const formatTime = (time) => {
@@ -628,16 +750,32 @@ const Post = ({
                           <div className="flex items-center space-x-4 mt-2 ml-4">
                             <motion.button
                               whileTap={{ scale: 0.9 }}
-                              className="flex items-center space-x-1 text-xs text-white/60 hover:text-red-400 transition-colors touch-manipulation"
+                              onClick={() => likeComment(commentDoc.id)}
+                              className={`flex items-center space-x-1 text-xs transition-colors touch-manipulation ${
+                                userCommentLikes[commentDoc.id] 
+                                  ? 'text-red-400' 
+                                  : 'text-white/60 hover:text-red-400'
+                              }`}
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg 
+                                className="w-4 h-4" 
+                                fill={userCommentLikes[commentDoc.id] ? "currentColor" : "none"} 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                              >
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                               </svg>
-                              <span>Like</span>
+                              <span>
+                                {commentLikes[commentDoc.id]?.length > 0 
+                                  ? commentLikes[commentDoc.id].length 
+                                  : 'Like'
+                                }
+                              </span>
                             </motion.button>
                             
                             <motion.button
                               whileTap={{ scale: 0.9 }}
+                              onClick={() => handleReplyClick(commentDoc.id)}
                               className="text-xs text-white/60 hover:text-blue-400 transition-colors touch-manipulation"
                             >
                               Reply
@@ -654,6 +792,107 @@ const Post = ({
                               </motion.button>
                             )}
                           </div>
+                          
+                          {/* Replies Section */}
+                          {replies[commentDoc.id] && replies[commentDoc.id].length > 0 && (
+                            <div className="mt-3 ml-4 space-y-3">
+                              {replies[commentDoc.id].map((replyDoc, replyIndex) => {
+                                const replyData = replyDoc.data();
+                                return (
+                                  <motion.div
+                                    key={replyDoc.id}
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: replyIndex * 0.05 }}
+                                    className="flex items-start space-x-2"
+                                  >
+                                    <img
+                                      src={replyData.profileImg || "/default-avatar.png"}
+                                      alt={replyData.username}
+                                      className="w-8 h-8 rounded-full object-cover border border-white/20 flex-shrink-0"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <p className="font-medium text-xs text-white truncate">
+                                            {replyData.username}
+                                          </p>
+                                          <p className="text-xs text-white/50 ml-2 flex-shrink-0">
+                                            {moment(replyData.timestamp?.toDate()).fromNow()}
+                                          </p>
+                                        </div>
+                                        <p className="text-white/80 text-xs leading-relaxed break-words">
+                                          {replyData.reply}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          
+                          {/* Reply Input */}
+                          {replyingTo === commentDoc.id && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="mt-3 ml-4"
+                            >
+                              <div className="flex items-start space-x-2">
+                                <img
+                                  src={user?.photoURL || "/default-avatar.png"}
+                                  alt={user?.displayName}
+                                  className="w-8 h-8 rounded-full object-cover border border-white/20 flex-shrink-0"
+                                />
+                                <div className="flex-1 flex items-end space-x-2">
+                                  <textarea
+                                    value={replyText}
+                                    onChange={(e) => setReplyText(e.target.value)}
+                                    placeholder="Write a reply..."
+                                    rows={1}
+                                    className="flex-1 px-3 py-2 bg-transparent border-0 border-b border-gray-600/40 focus:outline-none focus:border-blue-500 transition-all duration-300 text-white placeholder-gray-400 resize-none min-h-[32px] max-h-20 text-sm"
+                                    disabled={loadingReply}
+                                    onInput={(e) => {
+                                      e.target.style.height = 'auto';
+                                      e.target.style.height = Math.min(e.target.scrollHeight, 80) + 'px';
+                                    }}
+                                  />
+                                  <div className="flex space-x-2">
+                                    <motion.button
+                                      whileHover={{ scale: 1.05 }}
+                                      whileTap={{ scale: 0.95 }}
+                                      onClick={() => addReply(commentDoc.id)}
+                                      disabled={loadingReply || !replyText.trim()}
+                                      className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full transition-all duration-200 shadow-lg hover:shadow-xl"
+                                    >
+                                      {loadingReply ? (
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                      ) : (
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                        </svg>
+                                      )}
+                                    </motion.button>
+                                    <motion.button
+                                      whileHover={{ scale: 1.05 }}
+                                      whileTap={{ scale: 0.95 }}
+                                      onClick={cancelReply}
+                                      className="flex items-center justify-center w-8 h-8 bg-gray-600 hover:bg-gray-700 text-white rounded-full transition-all duration-200"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </motion.button>
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
                         </div>
                       </motion.div>
                     );
