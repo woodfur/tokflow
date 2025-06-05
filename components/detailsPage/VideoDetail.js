@@ -11,7 +11,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import moment from "moment";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/router";
