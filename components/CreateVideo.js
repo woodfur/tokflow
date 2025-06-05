@@ -77,18 +77,18 @@ const CreateVideo = () => {
         });
 
         if (selectedFile) {
-          const imageRef = ref(storage, `posts/${docRef.id}/image`);
+          const videoRef = ref(storage, `posts/${docRef.id}/video`);
 
-          await uploadString(imageRef, selectedFile, "data_url").then(
+          await uploadString(videoRef, selectedFile, "data_url").then(
             async (snapshot) => {
-              const downloadUrl = await getDownloadURL(imageRef);
+              const downloadUrl = await getDownloadURL(videoRef);
               await updateDoc(doc(firestore, "posts", docRef.id), {
-                image: downloadUrl,
+                video: downloadUrl,
               });
             }
           );
         } else {
-          console.log("No Image");
+          console.log("No Video");
         }
 
         setCaption("");
