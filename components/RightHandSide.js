@@ -75,7 +75,7 @@ const RightHandSide = () => {
                 <Post
                   caption={post.data().caption}
                   company={post.data().company}
-                  video={post.data().image}
+                  video={post.data().video}
                   profileImage={post.data().profileImage}
                   topic={post.data().topic}
                   timestamp={post.data().timestamp}
