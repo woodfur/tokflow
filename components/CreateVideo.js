@@ -8,7 +8,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
-import { getDownloadURL, ref, uploadString } from "firebase/storage";
+import { getDownloadURL, ref, uploadString, uploadBytes } from "firebase/storage";
 import { useRouter } from "next/router";
 import toast, { Toaster } from "react-hot-toast";
 import { motion } from "framer-motion";
@@ -63,6 +63,7 @@ const CreateVideo = () => {
       setLoading(true);
 
       try {
+        // Create post document in Firestore
         const docRef = await addDoc(collection(firestore, "posts"), {
           userId: user?.uid,
           username: user?.displayName,
@@ -79,6 +80,7 @@ const CreateVideo = () => {
         if (selectedFile) {
           const videoRef = ref(storage, `posts/${docRef.id}/video`);
 
+          // Upload video file to Firebase Storage using data URL
           await uploadString(videoRef, selectedFile, "data_url").then(
             async (snapshot) => {
               const downloadUrl = await getDownloadURL(videoRef);
@@ -87,20 +89,60 @@ const CreateVideo = () => {
               });
             }
           );
+
+          toast.success("Video uploaded successfully!", {
+            duration: 3000,
+            position: "bottom-right",
+            style: {
+              background: "#10B981",
+              color: "#fff",
+              fontWeight: "bolder",
+              fontSize: "17px",
+              padding: "20px",
+            },
+          });
         } else {
-          console.log("No Video");
+          throw new Error("No video file selected");
         }
 
+        // Reset form
         setCaption("");
-        setTopic("");
+        setTopic(topics[0].name);
         setSelectedFile("");
+        setSongName("");
+        setHashTags("");
+        
+        // Redirect to home page
         router.push("/");
       } catch (error) {
-        console.log(error);
+        console.error("Upload error:", error);
+        toast.error(`Upload failed: ${error.message || 'Please try again'}`, {
+          duration: 4000,
+          position: "bottom-right",
+          style: {
+            background: "#EF4444",
+            color: "#fff",
+            fontWeight: "bolder",
+            fontSize: "17px",
+            padding: "20px",
+          },
+        });
       }
     } else {
       if (!caption) {
         toast.error("Caption field is empty", {
+          duration: 3000,
+          position: "bottom-right",
+          style: {
+            background: "#fff",
+            color: "#015871",
+            fontWeight: "bolder",
+            fontSize: "17px",
+            padding: "20px",
+          },
+        });
+      } else if (!selectedFile) {
+        toast.error("Please select a video file", {
           duration: 3000,
           position: "bottom-right",
           style: {

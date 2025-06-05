@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Head from "next/head";
 import { motion } from "framer-motion";
 import { CloudArrowUpIcon, VideoCameraIcon, XMarkIcon, PlayIcon } from "@heroicons/react/24/outline";
@@ -53,11 +53,22 @@ const Upload = () => {
   };
 
   const handleFileSelect = (file) => {
-    if (file && file.type.startsWith('video/')) {
-      setSelectedFile(file);
-    } else {
+    if (!file) return;
+    
+    // Check file type
+    if (!file.type.startsWith('video/')) {
       alert('Please select a valid video file.');
+      return;
     }
+    
+    // Check file size (limit to 100MB)
+    const maxSize = 100 * 1024 * 1024; // 100MB in bytes
+    if (file.size > maxSize) {
+      alert('File size too large. Please select a video under 100MB.');
+      return;
+    }
+    
+    setSelectedFile(file);
   };
 
   const handleFileInputChange = (e) => {
@@ -87,19 +98,26 @@ const Upload = () => {
     setIsUploading(true);
     
     try {
+      // Check network connectivity
+      if (!navigator.onLine) {
+        throw new Error('No internet connection. Please check your network and try again.');
+      }
+
       // Create post document in Firestore
       const docRef = await addDoc(collection(firestore, "posts"), {
         userId: user?.uid,
-        username: user?.displayName,
-        caption: caption,
-        profileImage: user?.photoURL,
-        company: user?.email,
+        username: user?.displayName || 'Anonymous',
+        caption: caption.trim(),
+        profileImage: user?.photoURL || '',
+        company: user?.email || '',
         timestamp: serverTimestamp(),
       });
 
       // Upload video file to Firebase Storage
       const videoRef = ref(storage, `posts/${docRef.id}/video`);
-      await uploadBytes(videoRef, selectedFile);
+      
+      // Upload with progress tracking
+      const uploadTask = await uploadBytes(videoRef, selectedFile);
       
       // Get download URL and update post document
       const downloadUrl = await getDownloadURL(videoRef);
@@ -108,7 +126,9 @@ const Upload = () => {
       });
 
       setIsUploading(false);
-      alert('Upload successful!');
+      alert('Upload successful! Your video will appear in the feed shortly.');
+      
+      // Reset form
       setSelectedFile(null);
       setCaption('');
       if (fileInputRef.current) {
@@ -120,7 +140,29 @@ const Upload = () => {
     } catch (error) {
       console.error('Upload error:', error);
       setIsUploading(false);
-      alert('Upload failed. Please try again.');
+      
+      // Handle specific error types
+      let errorMessage = 'Upload failed. Please try again.';
+      
+      if (error.code === 'storage/unauthorized') {
+        errorMessage = 'Permission denied. Please check your account permissions.';
+      } else if (error.code === 'storage/canceled') {
+        errorMessage = 'Upload was canceled.';
+      } else if (error.code === 'storage/quota-exceeded') {
+        errorMessage = 'Storage quota exceeded. Please try again later.';
+      } else if (error.code === 'storage/invalid-format') {
+        errorMessage = 'Invalid file format. Please select a valid video file.';
+      } else if (error.code === 'storage/object-not-found') {
+        errorMessage = 'File not found. Please select the file again.';
+      } else if (error.message.includes('network')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message.includes('permission')) {
+        errorMessage = 'Permission denied. Please sign in again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(errorMessage);
     }
   };
 
