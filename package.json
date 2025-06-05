@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@faker-js/faker": "^7.6.0",
     "@heroicons/react": "^2.2.0",
     "firebase": "^9.13.0",
     "framer-motion": "^7.6.3",
