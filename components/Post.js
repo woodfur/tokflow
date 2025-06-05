@@ -91,6 +91,58 @@ const Post = ({
     }
   }, [id]);
 
+  // Auto-play video when component mounts and handle visibility
+  useEffect(() => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const videoContainer = video.parentElement;
+      
+      // Create intersection observer to handle autoplay on scroll
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+              // Video is more than 50% visible, start playing
+              const playPromise = video.play();
+              
+              if (playPromise !== undefined) {
+                playPromise
+                  .then(() => {
+                    setPlaying(true);
+                  })
+                  .catch((error) => {
+                    console.log("Auto-play prevented:", error);
+                    setPlaying(false);
+                  });
+              }
+            } else {
+              // Video is not visible enough, pause it
+              video.pause();
+              setPlaying(false);
+            }
+          });
+        },
+        {
+          threshold: [0.5], // Trigger when 50% of video is visible
+          rootMargin: '0px'
+        }
+      );
+      
+      // Start observing the video container
+      if (videoContainer) {
+        observer.observe(videoContainer);
+      }
+      
+      // Cleanup observer on unmount
+      return () => {
+        if (videoContainer) {
+          observer.unobserve(videoContainer);
+        }
+        observer.disconnect();
+      };
+    }
+  }, [video]); // Re-run when video source changes
+
   // Video event handlers
   const handleVideoClick = () => {
     if (videoRef.current) {
