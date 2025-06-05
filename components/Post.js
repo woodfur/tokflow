@@ -263,7 +263,7 @@ const Post = ({
       {/* Full Screen Video */}
       <motion.div
         className="absolute inset-0"
-        onMouseEnter={() => setShowControls(true)}
+        onMouseEnter={() => !playing && setShowControls(true)}
         onMouseLeave={() => setShowControls(false)}
       >
         <video
@@ -300,7 +300,7 @@ const Post = ({
 
         {/* Video Controls */}
         <AnimatePresence>
-          {showControls && duration > 0 && (
+          {showControls && duration > 0 && !playing && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

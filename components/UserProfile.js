@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { onSnapshot, query, collection, orderBy } from "firebase/firestore";
-import { faker } from "@faker-js/faker";
+
 import { motion } from "framer-motion";
 import {
   UserPlusIcon,
@@ -139,15 +139,15 @@ const UserProfile = () => {
           className="flex gap-8 text-center mb-6"
         >
           <div className="flex flex-col">
-            <span className="font-bold text-lg text-neutral-900 dark:text-neutral-100">{faker.random.numeric()}</span>
+            <span className="font-bold text-lg text-neutral-900 dark:text-neutral-100">0</span>
             <span className="text-sm text-neutral-600 dark:text-neutral-400">Following</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-lg text-neutral-900 dark:text-neutral-100">{faker.random.numeric()}K</span>
+            <span className="font-bold text-lg text-neutral-900 dark:text-neutral-100">0</span>
             <span className="text-sm text-neutral-600 dark:text-neutral-400">Followers</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-lg text-neutral-900 dark:text-neutral-100">{faker.random.numeric()}K</span>
+            <span className="font-bold text-lg text-neutral-900 dark:text-neutral-100">0</span>
             <span className="text-sm text-neutral-600 dark:text-neutral-400">Likes</span>
           </div>
         </motion.div>
@@ -224,7 +224,7 @@ const UserProfile = () => {
             <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <div className="flex items-center gap-1 text-white text-xs">
                 <HeartIcon className="w-3 h-3" />
-                <span>{faker.random.numeric()}</span>
+                <span>0</span>
               </div>
             </div>
           </motion.div>

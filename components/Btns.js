@@ -1,4 +1,3 @@
-import { faker } from "@faker-js/faker";
 import { motion } from "framer-motion";
 import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
@@ -43,20 +42,7 @@ const Btns = () => {
     });
   };
 
-  useEffect(() => {
-    const users = [];
-    for (let i = 0; i < 5; i++) {
-      users.push({
-        id: faker.datatype.uuid(),
-        name: faker.name.fullName(),
-        avatar: faker.image.avatar(),
-        username: faker.internet.userName(),
-        followers: faker.datatype.number({ min: 100, max: 50000 }),
-        isVerified: faker.datatype.boolean(),
-      });
-    }
-    setRandomUsers(users);
-  }, []);
+  // Removed fake user generation - will be replaced with real user suggestions in the future
 
   const formatFollowers = (count) => {
     if (count >= 1000000) {
@@ -69,15 +55,16 @@ const Btns = () => {
 
   return (
     <div className="space-y-3">
-      {randomUsers.map((suggestedUser, index) => {
-        const isFollowed = followedUsers.has(suggestedUser.id);
-        
-        return (
-          <motion.div
-            key={suggestedUser.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1, duration: 0.3 }}
+      {randomUsers.length > 0 ? (
+        randomUsers.map((suggestedUser, index) => {
+          const isFollowed = followedUsers.has(suggestedUser.id);
+          
+          return (
+            <motion.div
+              key={suggestedUser.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1, duration: 0.3 }}
             whileHover={{ scale: 1.02 }}
             className="flex items-center justify-between p-3 rounded-2xl hover:bg-neutral-50/80 dark:hover:bg-neutral-800/80 transition-all duration-200 cursor-pointer group"
             onClick={() => handleChangePage(suggestedUser.id)}
@@ -136,15 +123,28 @@ const Btns = () => {
             </motion.button>
           </motion.div>
         );
-      })}
-      
-      <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className="w-full mt-4 py-3 text-primary-600 dark:text-primary-400 font-medium text-sm hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-2xl transition-colors"
-      >
-        See all suggestions
-      </motion.button>
+      })
+      ) : (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-8"
+        >
+          <p className="text-neutral-500 dark:text-neutral-400 text-sm">
+            No suggestions available
+          </p>
+        </motion.div>
+      )}
+
+      {randomUsers.length > 0 && (
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="w-full mt-4 py-3 text-primary-600 dark:text-primary-400 font-medium text-sm hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-2xl transition-colors"
+        >
+          See all suggestions
+        </motion.button>
+      )}
     </div>
   );
 };
