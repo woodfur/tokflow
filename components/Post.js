@@ -30,7 +30,9 @@ import {
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
   EllipsisHorizontalIcon,
-  CheckBadgeIcon
+  CheckBadgeIcon,
+  MicrophoneIcon,
+  StopIcon
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid, BookmarkIcon as BookmarkSolid } from "@heroicons/react/24/solid";
 
@@ -71,6 +73,25 @@ const Post = ({
   const [replies, setReplies] = useState({});
   const [commentLikes, setCommentLikes] = useState({});
   const [userCommentLikes, setUserCommentLikes] = useState({});
+  
+  // Voice recording states
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [playingAudio, setPlayingAudio] = useState(null);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const recordingTimerRef = useRef(null);
+  const audioRef = useRef(null);
+  
+  // Reply voice recording states
+  const [replyRecording, setReplyRecording] = useState({});
+  const [replyRecordingTime, setReplyRecordingTime] = useState({});
+  const [replyAudioBlob, setReplyAudioBlob] = useState({});
+  const [replyMediaRecorder, setReplyMediaRecorder] = useState({});
+  const replyRecordingTimerRef = useRef({});
 
   // Fetch likes
   useEffect(() => {
@@ -82,6 +103,22 @@ const Post = ({
       return unsubscribe;
     }
   }, [id]);
+
+  // Cleanup voice recording on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      // Cleanup reply recording timers
+      Object.values(replyRecordingTimerRef.current).forEach(timer => {
+        if (timer) clearInterval(timer);
+      });
+    };
+  }, []);
 
   // Check if user has liked
   useEffect(() => {
@@ -268,28 +305,327 @@ const Post = ({
   };
 
   // Comment functionality
-  const addComment = async (e) => {
-    e.preventDefault();
+  const addComment = async (e, voiceData = null) => {
+    if (e) e.preventDefault();
     if (!user) {
       toast.error("Please sign in to comment");
       return;
     }
-    if (!comment.trim()) return;
+    
+    // Check if it's a voice message or text comment
+    if (voiceData) {
+      if (!voiceData.audioData) return;
+    } else {
+      if (!comment.trim()) return;
+    }
 
     setLoading(true);
     try {
-      await addDoc(collection(db, "posts", id, "comments"), {
-        comment: comment.trim(),
+      const commentData = {
         username: user.displayName,
         profileImg: user.photoURL,
         timestamp: serverTimestamp(),
-      });
-      setComment("");
-      toast.success("Comment added!");
+      };
+      
+      if (voiceData) {
+        // Voice message
+        commentData.type = 'voice';
+        commentData.audioData = voiceData.audioData;
+        commentData.duration = voiceData.duration;
+      } else {
+        // Text comment
+        commentData.comment = comment.trim();
+        commentData.type = 'text';
+      }
+      
+      await addDoc(collection(db, "posts", id, "comments"), commentData);
+      
+      if (!voiceData) {
+        setComment("");
+      }
+      toast.success(voiceData ? "Voice message sent!" : "Comment added!");
     } catch (error) {
       toast.error("Error adding comment");
     }
     setLoading(false);
+  };
+
+  // Voice recording functions
+  const startRecording = async () => {
+    // Clear comment text when starting voice recording
+    setComment('');
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const audioChunks = [];
+
+      recorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        setAudioBlob(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      // Start timer with auto-stop at 10 seconds
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => {
+          const newTime = prev + 1;
+          if (newTime >= 10) { // Stop at 10 seconds
+            // Use setTimeout to avoid calling stopRecording within setState
+            setTimeout(() => {
+              if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                setIsRecording(false);
+                if (recordingTimerRef.current) {
+                  clearInterval(recordingTimerRef.current);
+                }
+              }
+            }, 0);
+            return 10;
+          }
+          return newTime;
+        });
+      }, 1000);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      toast.error('Unable to access microphone. Please check your permissions.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    }
+  };
+
+  const playAudio = (audioUrl, commentId) => {
+    if (playingAudio === commentId) {
+      // Pause if already playing
+      if (audioRef.current) {
+        audioRef.current.pause();
+        setPlayingAudio(null);
+      }
+    } else {
+      // Play new audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      
+      // Set up event listeners for progress tracking
+      audio.onloadedmetadata = () => {
+        setAudioDuration(audio.duration);
+      };
+      
+      audio.ontimeupdate = () => {
+        setAudioCurrentTime(audio.currentTime);
+        setAudioProgress((audio.currentTime / audio.duration) * 100);
+      };
+      
+      audio.onended = () => {
+        setPlayingAudio(null);
+        setAudioProgress(0);
+        setAudioCurrentTime(0);
+      };
+      
+      audio.onpause = () => {
+        setPlayingAudio(null);
+      };
+      
+      audio.play();
+      setPlayingAudio(commentId);
+    }
+  };
+
+  const sendVoiceMessage = () => {
+    if (audioBlob) {
+      // Convert blob to base64 for storage
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Audio = reader.result;
+        // Call addComment with voice message data
+        addComment(null, {
+          type: 'voice',
+          audioData: base64Audio,
+          duration: recordingTime + 1
+        });
+        // Reset voice recording state and clear comment text
+        setAudioBlob(null);
+        setRecordingTime(0);
+        setComment('');
+      };
+      reader.readAsDataURL(audioBlob);
+    }
+  };
+
+  const cancelVoiceMessage = () => {
+    setAudioBlob(null);
+    setRecordingTime(0);
+    // Don't clear comment text when canceling, user might want to type instead
+  };
+
+  // Reply voice recording functions
+  const startReplyRecording = async (commentId) => {
+    // Clear reply text when starting voice recording
+    setReplyText('');
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const audioChunks = [];
+
+      recorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        setReplyAudioBlob(prev => ({ ...prev, [commentId]: audioBlob }));
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setReplyMediaRecorder(prev => ({ ...prev, [commentId]: recorder }));
+      setReplyRecording(prev => ({ ...prev, [commentId]: true }));
+      setReplyRecordingTime(prev => ({ ...prev, [commentId]: 0 }));
+
+      // Start timer with auto-stop at 10 seconds
+      replyRecordingTimerRef.current[commentId] = setInterval(() => {
+        setReplyRecordingTime(prev => {
+          const currentTime = prev[commentId] || 0;
+          const newTime = currentTime + 1;
+          if (newTime >= 10) { // Stop at 10 seconds
+            setTimeout(() => {
+              const currentRecorder = replyMediaRecorder[commentId];
+              if (currentRecorder && currentRecorder.state === 'recording') {
+                currentRecorder.stop();
+                setReplyRecording(prev => ({ ...prev, [commentId]: false }));
+                if (replyRecordingTimerRef.current[commentId]) {
+                  clearInterval(replyRecordingTimerRef.current[commentId]);
+                }
+              }
+            }, 0);
+            return { ...prev, [commentId]: 10 };
+          }
+          return { ...prev, [commentId]: newTime };
+        });
+      }, 1000);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      toast.error('Unable to access microphone. Please check your permissions.');
+    }
+  };
+
+  const stopReplyRecording = (commentId) => {
+    const recorder = replyMediaRecorder[commentId];
+    if (recorder && replyRecording[commentId]) {
+      recorder.stop();
+      setReplyRecording(prev => ({ ...prev, [commentId]: false }));
+      if (replyRecordingTimerRef.current[commentId]) {
+        clearInterval(replyRecordingTimerRef.current[commentId]);
+      }
+    }
+  };
+
+  const sendReplyVoiceMessage = (commentId) => {
+    const audioBlob = replyAudioBlob[commentId];
+    if (audioBlob) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Audio = reader.result;
+        addReplyWithVoice(commentId, {
+          type: 'voice',
+          audioData: base64Audio,
+          duration: (replyRecordingTime[commentId] || 0) + 1
+        });
+        // Reset reply voice recording state
+        setReplyAudioBlob(prev => {
+          const newState = { ...prev };
+          delete newState[commentId];
+          return newState;
+        });
+        setReplyRecordingTime(prev => {
+          const newState = { ...prev };
+          delete newState[commentId];
+          return newState;
+        });
+        setReplyText('');
+      };
+      reader.readAsDataURL(audioBlob);
+    }
+  };
+
+  const cancelReplyVoiceMessage = (commentId) => {
+    setReplyAudioBlob(prev => {
+      const newState = { ...prev };
+      delete newState[commentId];
+      return newState;
+    });
+    setReplyRecordingTime(prev => {
+      const newState = { ...prev };
+      delete newState[commentId];
+      return newState;
+    });
+  };
+
+  // Add reply with voice message support
+  const addReplyWithVoice = async (commentId, voiceData = null) => {
+    if (!user) {
+      toast.error("Please sign in to reply");
+      return;
+    }
+    
+    // Check if it's a voice message or text reply
+    if (voiceData) {
+      if (!voiceData.audioData) return;
+    } else {
+      if (!replyText.trim()) return;
+    }
+
+    setLoadingReply(true);
+    try {
+      const replyData = {
+        username: user.displayName,
+        profileImg: user.photoURL,
+        timestamp: serverTimestamp(),
+      };
+      
+      if (voiceData) {
+        // Voice message
+        replyData.type = 'voice';
+        replyData.audioData = voiceData.audioData;
+        replyData.duration = voiceData.duration;
+      } else {
+        // Text reply
+        replyData.reply = replyText.trim();
+        replyData.type = 'text';
+      }
+      
+      await addDoc(collection(db, "posts", id, "comments", commentId, "replies"), replyData);
+      
+      if (!voiceData) {
+        setReplyText("");
+      }
+      setReplyingTo(null);
+      toast.success(voiceData ? "Voice reply sent!" : "Reply added!");
+    } catch (error) {
+      toast.error("Error adding reply");
+    }
+    setLoadingReply(false);
   };
 
   // Reply functionality
@@ -741,9 +1077,49 @@ const Post = ({
                                 {moment(commentData.timestamp?.toDate()).fromNow()}
                               </p>
                             </div>
-                            <p className="text-white/90 text-sm leading-relaxed break-words">
-                              {commentData.comment}
-                            </p>
+                            {commentData.type === 'voice' ? (
+                              <div className="flex items-center space-x-3 py-2">
+                                <motion.button
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => playAudio(commentData.audioData, commentDoc.id)}
+                                  className="flex items-center justify-center w-8 h-8 bg-blue-500 rounded-full text-white hover:bg-blue-600 transition-colors"
+                                >
+                                  {playingAudio === commentDoc.id ? (
+                                    <PauseIcon className="w-4 h-4" />
+                                  ) : (
+                                    <PlayIcon className="w-4 h-4 ml-0.5" />
+                                  )}
+                                </motion.button>
+                                <div className="flex-1">
+                                  <div 
+                                    className="bg-white/20 rounded-full h-2 overflow-hidden cursor-pointer"
+                                    onClick={(e) => {
+                                      if (audioRef.current && playingAudio === commentDoc.id) {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const clickX = e.clientX - rect.left;
+                                        const newTime = (clickX / rect.width) * audioRef.current.duration;
+                                        audioRef.current.currentTime = newTime;
+                                      }
+                                    }}
+                                  >
+                                    <div 
+                                      className="bg-blue-400 h-full rounded-full transition-all duration-100" 
+                                      style={{ width: playingAudio === commentDoc.id ? `${audioProgress}%` : '0%' }}
+                                    ></div>
+                                  </div>
+                                </div>
+                                <span className="text-xs text-white/70">
+                                  {playingAudio === commentDoc.id && audioDuration > 0 && isFinite(audioDuration) && isFinite(audioCurrentTime) && !isNaN(audioDuration) && !isNaN(audioCurrentTime)
+                                    ? `${Math.floor(audioCurrentTime)}s / ${Math.floor(audioDuration)}s`
+                                    : `${commentData.duration || 0}s`
+                                  }
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="text-white/90 text-sm leading-relaxed break-words">
+                                {commentData.comment}
+                              </p>
+                            )}
                           </div>
                           
                           {/* Mobile Comment Actions */}
@@ -821,9 +1197,55 @@ const Post = ({
                                             {moment(replyData.timestamp?.toDate()).fromNow()}
                                           </p>
                                         </div>
-                                        <p className="text-white/80 text-xs leading-relaxed break-words">
-                                          {replyData.reply}
-                                        </p>
+                                        {/* Audio Reply */}
+                                        {replyData.audioData ? (
+                                          <div className="flex items-center space-x-2">
+                                            <motion.button
+                                              whileTap={{ scale: 0.9 }}
+                                              onClick={() => playAudio(replyData.audioData, `reply-${replyDoc.id}`)}
+                                              className="flex items-center justify-center w-8 h-8 bg-blue-500 rounded-full text-white hover:bg-blue-600 transition-colors flex-shrink-0"
+                                            >
+                                              {playingAudio === `reply-${replyDoc.id}` ? (
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6" />
+                                                </svg>
+                                              ) : (
+                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                                  <path d="M8 5v14l11-7z" />
+                                                </svg>
+                                              )}
+                                            </motion.button>
+                                            <div className="flex-1 min-w-0">
+                                              <div 
+                                                className="w-full h-2 bg-white/20 rounded-full cursor-pointer overflow-hidden"
+                                                onClick={(e) => {
+                                                  if (audioRef.current && playingAudio === `reply-${replyDoc.id}`) {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    const clickX = e.clientX - rect.left;
+                                                    const percentage = clickX / rect.width;
+                                                    const newTime = percentage * audioDuration;
+                                                    audioRef.current.currentTime = newTime;
+                                                  }
+                                                }}
+                                              >
+                                                <div 
+                                                  className="bg-blue-400 h-full rounded-full transition-all duration-100" 
+                                                  style={{ width: playingAudio === `reply-${replyDoc.id}` ? `${audioProgress}%` : '0%' }}
+                                                ></div>
+                                              </div>
+                                            </div>
+                                            <span className="text-xs text-white/70 flex-shrink-0">
+                                              {playingAudio === `reply-${replyDoc.id}` && audioDuration > 0 && isFinite(audioDuration) && isFinite(audioCurrentTime) && !isNaN(audioDuration) && !isNaN(audioCurrentTime)
+                                                ? `${Math.floor(audioCurrentTime)}s / ${Math.floor(audioDuration)}s`
+                                                : `${replyData.duration || 0}s`
+                                              }
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <p className="text-white/80 text-xs leading-relaxed break-words">
+                                            {replyData.reply}
+                                          </p>
+                                        )}
                                       </div>
                                     </div>
                                   </motion.div>
@@ -847,37 +1269,117 @@ const Post = ({
                                   className="w-8 h-8 rounded-full object-cover border border-white/20 flex-shrink-0"
                                 />
                                 <div className="flex-1 flex items-end space-x-2">
-                                  <textarea
-                                    value={replyText}
-                                    onChange={(e) => setReplyText(e.target.value)}
-                                    placeholder="Write a reply..."
-                                    rows={1}
-                                    className="flex-1 px-3 py-2 bg-transparent border-0 border-b border-gray-600/40 focus:outline-none focus:border-blue-500 transition-all duration-300 text-white placeholder-gray-400 resize-none min-h-[32px] max-h-20 text-sm"
-                                    disabled={loadingReply}
-                                    onInput={(e) => {
-                                      e.target.style.height = 'auto';
-                                      e.target.style.height = Math.min(e.target.scrollHeight, 80) + 'px';
-                                    }}
-                                  />
+                                  {/* Voice Recording Preview */}
+                                  {replyAudioBlob[commentDoc.id] && (
+                                    <div className="flex-1 flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 rounded-lg">
+                                      <div className="flex items-center space-x-2">
+                                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                                        <span className="text-red-400 text-sm font-medium">
+                                          Voice Reply ({replyRecordingTime[commentDoc.id] || 0}s)
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Recording Indicator */}
+                                  {replyRecording[commentDoc.id] && (
+                                    <div className="flex-1 flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 rounded-lg">
+                                      <div className="flex items-center space-x-2">
+                                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                                        <span className="text-red-400 text-sm font-medium">
+                                          Recording... {replyRecordingTime[commentDoc.id] || 0}s / 10s
+                                        </span>
+                                      </div>
+                                      <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => stopReplyRecording(commentDoc.id)}
+                                        className="flex items-center justify-center w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full transition-all duration-200"
+                                      >
+                                        <StopIcon className="w-4 h-4" />
+                                      </motion.button>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Text Input */}
+                                  {!replyRecording[commentDoc.id] && !replyAudioBlob[commentDoc.id] && (
+                                    <textarea
+                                      value={replyText}
+                                      onChange={(e) => setReplyText(e.target.value)}
+                                      placeholder="Write a reply..."
+                                      rows={1}
+                                      className="flex-1 px-3 py-2 bg-transparent border-0 border-b border-gray-600/40 focus:outline-none focus:border-blue-500 transition-all duration-300 text-white placeholder-gray-400 resize-none min-h-[32px] max-h-20 text-sm"
+                                      disabled={loadingReply}
+                                      onInput={(e) => {
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = Math.min(e.target.scrollHeight, 80) + 'px';
+                                      }}
+                                    />
+                                  )}
                                   <div className="flex space-x-2">
-                                    <motion.button
-                                      whileHover={{ scale: 1.05 }}
-                                      whileTap={{ scale: 0.95 }}
-                                      onClick={() => addReply(commentDoc.id)}
-                                      disabled={loadingReply || !replyText.trim()}
-                                      className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full transition-all duration-200 shadow-lg hover:shadow-xl"
-                                    >
-                                      {loadingReply ? (
-                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                      ) : (
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                        </svg>
-                                      )}
-                                    </motion.button>
+                                    {/* Voice Recording Buttons */}
+                                    {replyAudioBlob[commentDoc.id] ? (
+                                      <>
+                                        <motion.button
+                                          whileHover={{ scale: 1.05 }}
+                                          whileTap={{ scale: 0.95 }}
+                                          onClick={() => sendReplyVoiceMessage(commentDoc.id)}
+                                          disabled={loadingReply}
+                                          className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full transition-all duration-200 shadow-lg hover:shadow-xl"
+                                        >
+                                          {loadingReply ? (
+                                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                          ) : (
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                            </svg>
+                                          )}
+                                        </motion.button>
+                                        <motion.button
+                                          whileHover={{ scale: 1.05 }}
+                                          whileTap={{ scale: 0.95 }}
+                                          onClick={() => cancelReplyVoiceMessage(commentDoc.id)}
+                                          className="flex items-center justify-center w-8 h-8 bg-gray-600 hover:bg-gray-700 text-white rounded-full transition-all duration-200"
+                                        >
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                          </svg>
+                                        </motion.button>
+                                      </>
+                                    ) : replyText.trim() ? (
+                                      <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => addReplyWithVoice(commentDoc.id)}
+                                        disabled={loadingReply}
+                                        className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full transition-all duration-200 shadow-lg hover:shadow-xl"
+                                      >
+                                        {loadingReply ? (
+                                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                          </svg>
+                                        ) : (
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                          </svg>
+                                        )}
+                                      </motion.button>
+                                    ) : !replyRecording[commentDoc.id] ? (
+                                       <motion.button
+                                         whileHover={{ scale: 1.05 }}
+                                         whileTap={{ scale: 0.95 }}
+                                         onClick={() => startReplyRecording(commentDoc.id)}
+                                         className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-full transition-all duration-200 shadow-lg hover:shadow-xl"
+                                       >
+                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                         </svg>
+                                       </motion.button>
+                                     ) : null}
                                     <motion.button
                                       whileHover={{ scale: 1.05 }}
                                       whileTap={{ scale: 0.95 }}
@@ -925,52 +1427,159 @@ const Post = ({
                   </div>
                   
                   <div className="flex-1 flex items-end space-x-3">
-                    <div className="flex-1 relative">
-                      <textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Share your thoughts..."
-                        rows={1}
-                        className="w-full px-2 py-3 bg-transparent border-0 border-b-2 border-gray-600/40 focus:outline-none focus:border-blue-500 transition-all duration-300 text-white placeholder-gray-400 resize-none min-h-[40px] max-h-32 touch-manipulation"
-                        disabled={loading}
-                        style={{
-                          height: 'auto',
-                          minHeight: '40px'
-                        }}
-                        onInput={(e) => {
-                          e.target.style.height = 'auto';
-                          e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px';
-                        }}
-                      />
-                      
-                      {/* Emoji Button */}
+                    {/* Hide text input and emoji when recording or has audio blob */}
+                    {!isRecording && !audioBlob && (
+                      <div className="flex-1 relative">
+                        <textarea
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="Share your thoughts..."
+                          rows={1}
+                          className="w-full px-2 py-3 bg-transparent border-0 border-b-2 border-gray-600/40 focus:outline-none focus:border-blue-500 transition-all duration-300 text-white placeholder-gray-400 resize-none min-h-[40px] max-h-32 touch-manipulation"
+                          disabled={loading}
+                          style={{
+                            height: 'auto',
+                            minHeight: '40px'
+                          }}
+                          onInput={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px';
+                          }}
+                        />
+                        
+                        {/* Emoji Button */}
+                        <motion.button
+                          type="button"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="absolute right-2 bottom-3 p-1 text-gray-400 hover:text-yellow-400 transition-colors duration-200 touch-manipulation"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </motion.button>
+                      </div>
+                    )}
+                    
+                    {/* Voice Recording Preview - Inline with profile */}
+                    {audioBlob && (
+                      <div className="flex-1 flex items-center space-x-3 bg-blue-500/20 rounded-xl p-3 border border-blue-500/30">
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => playAudio(URL.createObjectURL(audioBlob), 'preview')}
+                          className="flex items-center justify-center w-10 h-10 bg-blue-500 rounded-full text-white hover:bg-blue-600 transition-colors"
+                        >
+                          {playingAudio === 'preview' ? (
+                            <PauseIcon className="w-5 h-5" />
+                          ) : (
+                            <PlayIcon className="w-5 h-5 ml-0.5" />
+                          )}
+                        </motion.button>
+                        <div className="flex-1">
+                          <div className="bg-white/20 rounded-full h-2 overflow-hidden cursor-pointer" onClick={(e) => {
+                            if (audioRef.current && playingAudio === 'preview') {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const clickX = e.clientX - rect.left;
+                              const newTime = (clickX / rect.width) * audioRef.current.duration;
+                              audioRef.current.currentTime = newTime;
+                            }
+                          }}>
+                            <div className="bg-blue-400 h-full rounded-full transition-all duration-300" style={{ width: playingAudio === 'preview' ? `${audioProgress}%` : '0%' }}></div>
+                          </div>
+                          <div className="flex justify-between items-center mt-1">
+                            <span className="text-xs text-white/60">Voice message</span>
+                            <span className="text-xs text-white/70 font-mono">
+                              {playingAudio === 'preview' && isFinite(audioDuration) && isFinite(audioCurrentTime) && !isNaN(audioDuration) && !isNaN(audioCurrentTime) && audioDuration > 0
+                                ? `${Math.floor(audioCurrentTime)}s / ${Math.floor(audioDuration)}s` 
+                                : `${recordingTime}s`}
+                            </span>
+                          </div>
+                        </div>
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={cancelVoiceMessage}
+                          className="flex items-center justify-center w-8 h-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-full transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </motion.button>
+                      </div>
+                    )}
+                    
+                    {/* Recording Indicator - Inline with profile */}
+                    {isRecording && (
+                      <div className="flex-1 flex items-center space-x-3 bg-red-500/20 rounded-xl p-3 border border-red-500/30">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-white text-sm font-medium">Recording...</span>
+                            <span className="text-xs text-white/70 font-mono">{recordingTime}/10s</span>
+                          </div>
+                          <div className="mt-2">
+                            <div className="bg-white/20 rounded-full h-1 overflow-hidden">
+                              <div className="bg-red-400 h-full rounded-full transition-all duration-300" style={{ width: `${(recordingTime / 10) * 100}%` }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Dynamic Send/Record Button */}
+                    {audioBlob ? (
                       <motion.button
                         type="button"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        className="absolute right-2 bottom-3 p-1 text-gray-400 hover:text-yellow-400 transition-colors duration-200 touch-manipulation"
+                        onClick={sendVoiceMessage}
+                        disabled={loading}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="h-[52px] w-[52px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-2xl font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 shadow-xl hover:shadow-2xl touch-manipulation flex items-center justify-center border border-blue-500/20"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        {loading ? (
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
+                        )}
                       </motion.button>
-                    </div>
-                    
-                    <motion.button
-                      type="submit"
-                      disabled={loading || !comment.trim()}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                        className="h-[52px] px-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-2xl font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 shadow-xl hover:shadow-2xl touch-manipulation min-w-[60px] flex items-center justify-center border border-blue-500/20"
-                    >
-                      {loading ? (
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
-                      )}
-                    </motion.button>
+                    ) : comment.trim() ? (
+                      <motion.button
+                        type="submit"
+                        disabled={loading}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="h-[52px] w-[52px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-2xl font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 shadow-xl hover:shadow-2xl touch-manipulation flex items-center justify-center border border-blue-500/20"
+                      >
+                        {loading ? (
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
+                        )}
+                      </motion.button>
+                    ) : isRecording ? (
+                      <motion.button
+                        type="button"
+                        onClick={stopRecording}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="h-[52px] w-[52px] bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-2xl font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl touch-manipulation flex items-center justify-center border border-red-500/20"
+                      >
+                        <StopIcon className="w-5 h-5" />
+                      </motion.button>
+                    ) : (
+                      <motion.button
+                        type="button"
+                        onClick={startRecording}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="h-[52px] w-[52px] bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-2xl font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl touch-manipulation flex items-center justify-center border border-green-500/20"
+                      >
+                        <MicrophoneIcon className="w-5 h-5" />
+                      </motion.button>
+                    )}
                   </div>
                 </form>
               </div>
