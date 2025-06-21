@@ -44,7 +44,7 @@ const MobileNavigation = () => {
       label: "Store",
       icon: ShoppingBagIcon,
       path: "/store",
-      isActive: currentPath === "/store",
+      isActive: currentPath === "/store" || currentPath.startsWith("/product/") || currentPath.startsWith("/my-store") || currentPath.startsWith("/create-store"),
     },
     {
       id: "profile",

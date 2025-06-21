@@ -4,6 +4,7 @@ import { useAuthState } from 'react-firebase-hooks/auth'
 import { auth } from '../firebase/firebase'
 import { useRouter } from 'next/router'
 import { useEffect } from 'react'
+import { CartProvider } from '../context/CartContext'
 
 function MyApp({ Component, pageProps }) {
   const [user, loading] = useAuthState(auth)
@@ -45,7 +46,9 @@ function MyApp({ Component, pageProps }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
         <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </Head>
-      <Component {...pageProps} />
+      <CartProvider>
+        <Component {...pageProps} />
+      </CartProvider>
     </>
   )
 }

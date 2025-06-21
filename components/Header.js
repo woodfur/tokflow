@@ -3,13 +3,16 @@ import { useRouter } from "next/router";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { signOut } from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCart } from "../context/CartContext";
 
 import { 
   MagnifyingGlassIcon,
   PlusIcon,
   EllipsisVerticalIcon,
   BellIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  ShoppingCartIcon,
+  HeartIcon
 } from "@heroicons/react/24/outline";
 
 import { auth } from "../firebase/firebase";
@@ -17,6 +20,7 @@ import { auth } from "../firebase/firebase";
 const Header = ({ isShow }) => {
   const router = useRouter();
   const [user] = useAuthState(auth);
+  const { cart } = useCart();
   const [dropMenu, setDropMenu] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -144,6 +148,31 @@ const Header = ({ isShow }) => {
 
           {user ? (
             <>
+              {/* Cart Button */}
+              <motion.button
+                whileHover={{ scale: 1.1, y: -2 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => router.push("/cart")}
+                className="hidden md:flex p-2 rounded-full hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80 transition-colors duration-200 relative"
+              >
+                <ShoppingCartIcon className="w-6 h-6 text-neutral-700 dark:text-neutral-300" />
+                {cart.items.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-500 text-white text-xs rounded-full flex items-center justify-center font-semibold">
+                    {cart.items.reduce((total, item) => total + item.quantity, 0)}
+                  </span>
+                )}
+              </motion.button>
+
+              {/* Wishlist Button */}
+              <motion.button
+                whileHover={{ scale: 1.1, y: -2 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => router.push("/wishlist")}
+                className="hidden md:flex p-2 rounded-full hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80 transition-colors duration-200 relative"
+              >
+                <HeartIcon className="w-6 h-6 text-neutral-700 dark:text-neutral-300" />
+              </motion.button>
+
               {/* Notifications - Hidden on mobile */}
               <motion.button
                 whileHover={{ scale: 1.1, y: -2 }}
