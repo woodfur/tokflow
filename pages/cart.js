@@ -127,7 +127,7 @@ const Cart = () => {
                 Your cart is empty
               </h2>
               <p className="text-neutral-600 dark:text-neutral-400 mb-8">
-                Looks like you haven't added any items to your cart yet.
+                Looks like you haven&apos;t added any items to your cart yet.
               </p>
               <button
                 onClick={() => router.push('/store')}
