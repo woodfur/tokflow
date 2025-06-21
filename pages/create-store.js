@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { useRouter } from 'next/router';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../firebase/firebase';
 import { createStore, getUserStore } from '../firebase/storeOperations';
 import { motion } from 'framer-motion';
+import useImageUpload from '../hooks/useImageUpload';
 import {
   ArrowLeftIcon,
   PhotoIcon,
@@ -12,12 +13,25 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   GlobeAltIcon,
-  CheckIcon
+  CheckIcon,
+  XMarkIcon,
+  CloudArrowUpIcon
 } from '@heroicons/react/24/outline';
 
 const CreateStore = () => {
   const router = useRouter();
   const [user, loading, error] = useAuthState(auth);
+  const {
+    logoFile,
+    bannerFile,
+    logoPreview,
+    bannerPreview,
+    onSelectLogo,
+    onSelectBanner,
+    clearLogo,
+    clearBanner
+  } = useImageUpload();
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -26,8 +40,6 @@ const CreateStore = () => {
     phone: '',
     email: '',
     website: '',
-    logo: '',
-    banner: '',
     policies: {
       shipping: '',
       returns: '',
@@ -104,6 +116,10 @@ const CreateStore = () => {
     try {
       const storeData = {
         ...formData,
+        logo: logoPreview || '',
+        banner: bannerPreview || '',
+        logoFile: logoFile,
+        bannerFile: bannerFile,
         ownerId: user.uid,
         ownerName: user.displayName || user.email,
         ownerEmail: user.email,
@@ -113,7 +129,7 @@ const CreateStore = () => {
         updatedAt: new Date()
       };
 
-      await createStore(storeData);
+      await createStore(storeData, user.uid);
       router.push('/my-store?created=true');
     } catch (error) {
       console.error('Error creating store:', error);
@@ -300,7 +316,7 @@ const CreateStore = () => {
             </div>
 
             {/* Store Images */}
-            <div className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 p-8">
+            <div className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 p-4 md:p-8">
               <div className="flex items-center space-x-3 mb-6">
                 <PhotoIcon className="w-6 h-6 text-primary-600" />
                 <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
@@ -308,33 +324,109 @@ const CreateStore = () => {
                 </h2>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                {/* Logo Upload */}
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                    Logo URL
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-3">
+                    Store Logo
                   </label>
-                  <input
-                    type="url"
-                    name="logo"
-                    value={formData.logo}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-white/50 dark:bg-neutral-700/50 border border-neutral-200 dark:border-neutral-600 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                    placeholder="https://example.com/logo.jpg"
-                  />
+                  <div className="flex flex-col space-y-4">
+                    {logoPreview ? (
+                      <div className="relative">
+                        <div className="w-full max-w-xs mx-auto md:mx-0">
+                          <img
+                            src={logoPreview}
+                            alt="Logo preview"
+                            className="w-32 h-32 md:w-40 md:h-40 object-cover rounded-2xl border-2 border-neutral-200 dark:border-neutral-600 mx-auto"
+                          />
+                          <button
+                            type="button"
+                            onClick={clearLogo}
+                            className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors"
+                          >
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center mt-2">
+                          {logoFile?.name}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={onSelectLogo}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          id="logo-upload"
+                        />
+                        <label
+                          htmlFor="logo-upload"
+                          className="flex flex-col items-center justify-center w-full h-40 md:h-48 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-2xl hover:border-primary-400 dark:hover:border-primary-500 transition-colors cursor-pointer bg-neutral-50/50 dark:bg-neutral-700/50 hover:bg-neutral-100/50 dark:hover:bg-neutral-600/50"
+                        >
+                          <CloudArrowUpIcon className="w-8 h-8 md:w-10 md:h-10 text-neutral-400 dark:text-neutral-500 mb-2" />
+                          <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400 text-center px-4">
+                            Upload Store Logo
+                          </span>
+                          <span className="text-xs text-neutral-500 dark:text-neutral-500 text-center px-4 mt-1">
+                            Square format recommended • Max 5MB
+                          </span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                
+
+                {/* Banner Upload */}
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                    Banner URL
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-3">
+                    Store Banner
                   </label>
-                  <input
-                    type="url"
-                    name="banner"
-                    value={formData.banner}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-white/50 dark:bg-neutral-700/50 border border-neutral-200 dark:border-neutral-600 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                    placeholder="https://example.com/banner.jpg"
-                  />
+                  <div className="flex flex-col space-y-4">
+                    {bannerPreview ? (
+                      <div className="relative">
+                        <div className="w-full">
+                          <img
+                            src={bannerPreview}
+                            alt="Banner preview"
+                            className="w-full h-32 md:h-40 object-cover rounded-2xl border-2 border-neutral-200 dark:border-neutral-600"
+                          />
+                          <button
+                            type="button"
+                            onClick={clearBanner}
+                            className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors"
+                          >
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center mt-2">
+                          {bannerFile?.name}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={onSelectBanner}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          id="banner-upload"
+                        />
+                        <label
+                          htmlFor="banner-upload"
+                          className="flex flex-col items-center justify-center w-full h-32 md:h-40 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-2xl hover:border-primary-400 dark:hover:border-primary-500 transition-colors cursor-pointer bg-neutral-50/50 dark:bg-neutral-700/50 hover:bg-neutral-100/50 dark:hover:bg-neutral-600/50"
+                        >
+                          <CloudArrowUpIcon className="w-8 h-8 md:w-10 md:h-10 text-neutral-400 dark:text-neutral-500 mb-2" />
+                          <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400 text-center px-4">
+                            Upload Store Banner
+                          </span>
+                          <span className="text-xs text-neutral-500 dark:text-neutral-500 text-center px-4 mt-1">
+                            Wide format recommended • Max 10MB
+                          </span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

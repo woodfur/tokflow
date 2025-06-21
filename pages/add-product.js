@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../firebase/firebase';
 import { getUserStore, createProduct } from '../firebase/storeOperations';
+import { useProductImageUpload } from '../hooks/useProductImageUpload';
 import { motion } from 'framer-motion';
 import {
   ArrowLeftIcon,
@@ -12,7 +13,8 @@ import {
   CurrencyDollarIcon,
   TagIcon,
   ClipboardDocumentListIcon,
-  BuildingStorefrontIcon
+  BuildingStorefrontIcon,
+  CloudArrowUpIcon
 } from '@heroicons/react/24/outline';
 
 const PRODUCT_CATEGORIES = [
@@ -48,6 +50,16 @@ const AddProduct = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Product image upload hook
+  const {
+    imageFiles,
+    imagePreviews,
+    selectImages,
+    selectSingleImage,
+    removeImage,
+    clearAllImages
+  } = useProductImageUpload();
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -80,7 +92,6 @@ const AddProduct = () => {
   
   const [currentTag, setCurrentTag] = useState('');
   const [currentFeature, setCurrentFeature] = useState('');
-  const [imageUrls, setImageUrls] = useState(['']);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -173,28 +184,26 @@ const AddProduct = () => {
     }));
   };
 
-  const handleImageUrlChange = (index, value) => {
-    const newUrls = [...imageUrls];
-    newUrls[index] = value;
-    setImageUrls(newUrls);
-    
-    // Update formData with valid URLs
-    const validUrls = newUrls.filter(url => url.trim() !== '');
-    setFormData(prev => ({ ...prev, images: validUrls }));
-  };
-
-  const addImageUrl = () => {
-    if (imageUrls.length < 10) {
-      setImageUrls([...imageUrls, '']);
+  const handleImageDrop = (e) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files.length > 0 && imageFiles.length + files.length <= 10) {
+      selectImages(files);
     }
   };
 
-  const removeImageUrl = (index) => {
-    const newUrls = imageUrls.filter((_, i) => i !== index);
-    setImageUrls(newUrls);
-    
-    const validUrls = newUrls.filter(url => url.trim() !== '');
-    setFormData(prev => ({ ...prev, images: validUrls }));
+  const handleImageSelect = (e) => {
+    const files = e.target.files;
+    if (files.length > 0 && imageFiles.length + files.length <= 10) {
+      selectImages(files);
+    }
+  };
+
+  const handleSingleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file && imageFiles.length < 10) {
+      selectSingleImage(file);
+    }
   };
 
   const validateForm = () => {
@@ -205,7 +214,7 @@ const AddProduct = () => {
     if (!formData.price || parseFloat(formData.price) <= 0) newErrors.price = 'Valid price is required';
     if (!formData.category) newErrors.category = 'Category is required';
     if (!formData.stock || parseInt(formData.stock) < 0) newErrors.stock = 'Valid stock quantity is required';
-    if (formData.images.length === 0) newErrors.images = 'At least one product image is required';
+    if (imagePreviews.length === 0) newErrors.images = 'At least one product image is required';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -236,12 +245,14 @@ const AddProduct = () => {
           ...formData.shippingInfo,
           shippingCost: formData.shippingInfo.shippingCost ? parseFloat(formData.shippingInfo.shippingCost) : 0
         },
+        images: imagePreviews,
+        imageFiles: imageFiles,
         storeId: store.id,
         sellerId: user.uid,
-        thumbnail: formData.images[0] || null
+        thumbnail: imagePreviews[0] || null
       };
       
-      await createProduct(productData);
+      await createProduct(productData, store.id, user.uid);
       
       alert('Product added successfully!');
       router.push('/my-store');
@@ -466,41 +477,103 @@ const AddProduct = () => {
                   <span>Product Images *</span>
                 </h2>
                 
-                <div className="space-y-4">
-                  {imageUrls.map((url, index) => (
-                    <div key={index} className="flex items-center space-x-3">
-                      <input
-                        type="url"
-                        value={url}
-                        onChange={(e) => handleImageUrlChange(index, e.target.value)}
-                        className="flex-1 px-4 py-3 rounded-2xl border border-neutral-300 dark:border-neutral-600 bg-white/50 dark:bg-neutral-700/50 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                        placeholder="Enter image URL"
-                      />
-                      {imageUrls.length > 1 && (
+                {/* Image Upload Area */}
+                {imagePreviews.length === 0 ? (
+                  <div
+                    onDrop={handleImageDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDragEnter={(e) => e.preventDefault()}
+                    className="border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-2xl p-8 text-center hover:border-primary-400 dark:hover:border-primary-500 transition-colors cursor-pointer"
+                    onClick={() => document.getElementById('product-images-input').click()}
+                  >
+                    <CloudArrowUpIcon className="w-12 h-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
+                    <p className="text-lg font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Upload Product Images
+                    </p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
+                      Drag and drop images here, or click to select files
+                    </p>
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500">
+                      Maximum 10 images, up to 10MB each
+                    </p>
+                    <input
+                      id="product-images-input"
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Image Previews */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {imagePreviews.map((preview, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-700">
+                            <img
+                              src={preview}
+                              alt={`Product ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                          >
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
+                          {index === 0 && (
+                            <div className="absolute bottom-2 left-2 bg-primary-500 text-white text-xs px-2 py-1 rounded-lg">
+                              Main
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Add More Images */}
+                    {imagePreviews.length < 10 && (
+                      <div className="flex flex-col sm:flex-row gap-4">
                         <button
                           type="button"
-                          onClick={() => removeImageUrl(index)}
-                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                          onClick={() => document.getElementById('add-more-images-input').click()}
+                          className="flex items-center justify-center space-x-2 px-4 py-3 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-neutral-600 dark:text-neutral-400 hover:border-primary-400 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                         >
-                          <XMarkIcon className="w-5 h-5" />
+                          <PlusIcon className="w-5 h-5" />
+                          <span>Add More Images</span>
                         </button>
-                      )}
-                    </div>
-                  ))}
-                  
-                  {imageUrls.length < 10 && (
-                    <button
-                      type="button"
-                      onClick={addImageUrl}
-                      className="flex items-center space-x-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-                    >
-                      <PlusIcon className="w-5 h-5" />
-                      <span>Add another image</span>
-                    </button>
-                  )}
-                  
-                  {errors.images && <p className="text-red-500 text-sm">{errors.images}</p>}
-                </div>
+                        <input
+                          id="add-more-images-input"
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleImageSelect}
+                          className="hidden"
+                        />
+                        
+                        {imagePreviews.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={clearAllImages}
+                            className="flex items-center justify-center space-x-2 px-4 py-3 border border-red-300 dark:border-red-600 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <XMarkIcon className="w-5 h-5" />
+                            <span>Clear All</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                      {imagePreviews.length}/10 images uploaded. The first image will be used as the main product image.
+                    </p>
+                  </div>
+                )}
+                
+                {errors.images && <p className="text-red-500 text-sm mt-4">{errors.images}</p>}
               </motion.div>
 
               {/* Tags & Features */}
