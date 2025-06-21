@@ -416,7 +416,7 @@ const Store = () => {
             
             {/* Loading State */}
             {loading ? (
-              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {[...Array(8)].map((_, index) => (
                   <div key={index} className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 p-6 animate-pulse">
                     <div className="aspect-square bg-neutral-200 dark:bg-neutral-700 rounded-2xl mb-4"></div>
@@ -438,10 +438,10 @@ const Store = () => {
                 </p>
               </div>
             ) : (
-              <div className={`grid gap-6 ${
+              <div className={`grid ${
                 viewMode === "grid" 
-                  ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
-                  : "grid-cols-1"
+                  ? "gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
+                  : "gap-6 grid-cols-1"
               }`}>
                 {filteredProducts.map((product, index) => {
                   const discount = product.originalPrice && product.originalPrice > product.price 
@@ -458,14 +458,14 @@ const Store = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className={`group bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden hover:shadow-2xl hover:shadow-primary-500/10 transition-all duration-300 hover:-translate-y-1 cursor-pointer ${
-                        viewMode === "list" ? "flex items-center space-x-6 p-6" : "p-6"
+                      className={`group bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden hover:shadow-2xl hover:shadow-primary-500/10 transition-all duration-300 hover:-translate-y-1 cursor-pointer ${
+                        viewMode === "list" ? "flex items-center space-x-6 p-6" : "p-3 sm:p-6"
                       }`}
                       onClick={() => router.push(`/product/${product.id}`)}
                     >
                       {/* Product Image */}
-                      <div className={`relative overflow-hidden rounded-2xl ${
-                        viewMode === "list" ? "w-32 h-32 flex-shrink-0" : "aspect-square mb-4"
+                      <div className={`relative overflow-hidden rounded-xl sm:rounded-2xl ${
+                        viewMode === "list" ? "w-32 h-32 flex-shrink-0" : "aspect-square mb-2 sm:mb-4"
                       }`}>
                         <img
                           src={product.thumbnail || product.images?.[0] || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=400&fit=crop'}
@@ -478,7 +478,7 @@ const Store = () => {
                         
                         {/* Discount Badge */}
                         {discount && (
-                          <div className="absolute top-3 left-3 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          <div className="absolute top-2 sm:top-3 left-2 sm:left-3 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
                             {discount}% OFF
                           </div>
                         )}
@@ -493,7 +493,7 @@ const Store = () => {
                         {/* Wishlist Button */}
                         <button
                           onClick={() => toggleLike(product.id)}
-                          className="absolute top-3 right-3 p-2 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-full hover:bg-white dark:hover:bg-neutral-800 transition-all duration-200 hover:scale-110"
+                          className="absolute top-2 sm:top-3 right-2 sm:right-3 p-1.5 sm:p-2 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-full hover:bg-white dark:hover:bg-neutral-800 transition-all duration-200 hover:scale-110"
                         >
                           {isLiked ? (
                             <HeartIconSolid className="w-5 h-5 text-red-500" />
@@ -505,7 +505,7 @@ const Store = () => {
                       
                       {/* Product Info */}
                       <div className={viewMode === "list" ? "flex-1" : ""}>
-                        <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-2">
+                        <h3 className="text-sm sm:text-base font-semibold text-neutral-900 dark:text-neutral-100 mb-1 sm:mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-2">
                           {product.name}
                         </h3>
                         
@@ -517,12 +517,12 @@ const Store = () => {
                         )}
                         
                         {/* Rating */}
-                        <div className="flex items-center space-x-2 mb-3">
-                          <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-1 sm:space-x-2 mb-2 sm:mb-3">
+                          <div className="flex items-center space-x-0.5 sm:space-x-1">
                             {[...Array(5)].map((_, i) => (
                               <StarIconSolid
                                 key={i}
-                                className={`w-4 h-4 ${
+                                className={`w-3 h-3 sm:w-4 sm:h-4 ${
                                   i < Math.floor(product.rating || 0)
                                     ? "text-yellow-400"
                                     : "text-neutral-300 dark:text-neutral-600"
@@ -530,23 +530,23 @@ const Store = () => {
                               />
                             ))}
                           </div>
-                          <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                          <span className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
                             ({product.totalReviews || 0})
                           </span>
                           {product.stock <= 5 && product.stock > 0 && (
-                            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium hidden sm:inline">
                               Only {product.stock} left
                             </span>
                           )}
                         </div>
                         
                         {/* Price */}
-                        <div className="flex items-center space-x-2 mb-4">
-                          <span className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                        <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
+                          <span className="text-base sm:text-lg font-bold text-neutral-900 dark:text-neutral-100">
                             ${product.price?.toFixed(2) || '0.00'}
                           </span>
                           {product.originalPrice && product.originalPrice > product.price && (
-                            <span className="text-sm text-neutral-500 dark:text-neutral-400 line-through">
+                            <span className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 line-through">
                               ${product.originalPrice.toFixed(2)}
                             </span>
                           )}
@@ -556,7 +556,7 @@ const Store = () => {
                         <button 
                           onClick={() => handleAddToCart(product.id)}
                           disabled={!product.isInStock}
-                          className={`w-full font-medium py-3 px-4 rounded-2xl transition-all duration-200 flex items-center justify-center space-x-2 group/btn ${
+                          className={`w-full text-xs sm:text-sm font-medium py-2 sm:py-3 px-2 sm:px-4 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center space-x-1 sm:space-x-2 group/btn ${
                             !product.isInStock
                               ? 'bg-neutral-300 dark:bg-neutral-600 text-neutral-500 dark:text-neutral-400 cursor-not-allowed'
                               : inCart
@@ -564,7 +564,7 @@ const Store = () => {
                               : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white hover:shadow-lg hover:shadow-primary-500/25'
                           }`}
                         >
-                          <ShoppingBagIcon className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                          <ShoppingBagIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover/btn:scale-110 transition-transform" />
                           <span>
                             {!product.isInStock 
                               ? 'Out of Stock'
