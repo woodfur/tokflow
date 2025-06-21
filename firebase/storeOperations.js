@@ -29,7 +29,11 @@ import { COLLECTIONS } from './schemas';
 // Create a new store
 export const createStore = async (storeData, userId) => {
   try {
-    const storeRef = await addDoc(collection(firestore, COLLECTIONS.STORES), {
+    console.log('Creating store with data:', storeData);
+    console.log('User ID:', userId);
+    
+    // Clean the store data - remove file objects that can't be stored in Firestore
+    const cleanStoreData = {
       ...storeData,
       ownerId: userId,
       isActive: true,
@@ -39,7 +43,16 @@ export const createStore = async (storeData, userId) => {
       totalSales: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    });
+    };
+    
+    // Remove file objects that can't be stored in Firestore
+    delete cleanStoreData.logoFile;
+    delete cleanStoreData.bannerFile;
+    
+    console.log('Clean store data:', cleanStoreData);
+    
+    const storeRef = await addDoc(collection(firestore, COLLECTIONS.STORES), cleanStoreData);
+    console.log('Store created with ID:', storeRef.id);
 
     // Update user profile to indicate they have a store
     await updateDoc(doc(firestore, COLLECTIONS.USERS, userId), {
@@ -47,10 +60,13 @@ export const createStore = async (storeData, userId) => {
       storeId: storeRef.id,
       updatedAt: serverTimestamp()
     });
-
+    
+    console.log('User profile updated successfully');
     return storeRef.id;
   } catch (error) {
     console.error('Error creating store:', error);
+    console.error('Error details:', error.message);
+    console.error('Error code:', error.code);
     throw error;
   }
 };
@@ -125,8 +141,18 @@ export const getActiveStores = async (limitCount = 20) => {
 // Create a new product
 export const createProduct = async (productData, storeId, userId) => {
   try {
+    console.log('Creating product with data:', productData);
+    console.log('Store ID:', storeId);
+    console.log('User ID:', userId);
+    
+    // Clean the product data by removing file objects that can't be serialized
+    const cleanProductData = { ...productData };
+    delete cleanProductData.imageFiles; // Remove file objects
+    
+    console.log('Clean product data:', cleanProductData);
+    
     const productRef = await addDoc(collection(firestore, COLLECTIONS.PRODUCTS), {
-      ...productData,
+      ...cleanProductData,
       storeId,
       ownerId: userId,
       isActive: true,
@@ -147,9 +173,13 @@ export const createProduct = async (productData, storeId, userId) => {
       updatedAt: serverTimestamp()
     });
 
+    console.log('Product created successfully with ID:', productRef.id);
     return productRef.id;
   } catch (error) {
     console.error('Error creating product:', error);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Full error object:', error);
     throw error;
   }
 };
@@ -171,17 +201,33 @@ export const getProduct = async (productId) => {
 // Get products by store
 export const getStoreProducts = async (storeId, limitCount = 20) => {
   try {
+    console.log('Getting products for store ID:', storeId);
+    
+    // First try without orderBy to check if it's an index issue
     const q = query(
       collection(firestore, COLLECTIONS.PRODUCTS),
       where('storeId', '==', storeId),
       where('isActive', '==', true),
-      orderBy('createdAt', 'desc'),
       limit(limitCount)
     );
+    
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log('Found products:', products.length, products);
+    
+    // Sort manually by createdAt if products exist
+    if (products.length > 0) {
+      products.sort((a, b) => {
+        const aTime = a.createdAt?.toDate?.() || new Date(0);
+        const bTime = b.createdAt?.toDate?.() || new Date(0);
+        return bTime - aTime;
+      });
+    }
+    
+    return products;
   } catch (error) {
     console.error('Error getting store products:', error);
+    console.error('Error details:', error.message);
     throw error;
   }
 };
@@ -189,27 +235,41 @@ export const getStoreProducts = async (storeId, limitCount = 20) => {
 // Get all active products
 export const getActiveProducts = async (limitCount = 20, category = null) => {
   try {
+    console.log('Getting active products, category:', category, 'limit:', limitCount);
+    
     let q;
     if (category) {
       q = query(
         collection(firestore, COLLECTIONS.PRODUCTS),
         where('isActive', '==', true),
         where('category', '==', category),
-        orderBy('createdAt', 'desc'),
         limit(limitCount)
       );
     } else {
       q = query(
         collection(firestore, COLLECTIONS.PRODUCTS),
         where('isActive', '==', true),
-        orderBy('createdAt', 'desc'),
         limit(limitCount)
       );
     }
+    
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log('Found active products:', products.length, products);
+    
+    // Sort manually by createdAt if products exist
+    if (products.length > 0) {
+      products.sort((a, b) => {
+        const aTime = a.createdAt?.toDate?.() || new Date(0);
+        const bTime = b.createdAt?.toDate?.() || new Date(0);
+        return bTime - aTime;
+      });
+    }
+    
+    return products;
   } catch (error) {
     console.error('Error getting active products:', error);
+    console.error('Error details:', error.message);
     throw error;
   }
 };
@@ -217,6 +277,8 @@ export const getActiveProducts = async (limitCount = 20, category = null) => {
 // Search products
 export const searchProducts = async (searchTerm, category = null, limitCount = 20) => {
   try {
+    console.log('Searching products, term:', searchTerm, 'category:', category, 'limit:', limitCount);
+    
     // Note: This is a basic search. For production, consider using Algolia or similar
     let q;
     if (category) {
@@ -224,34 +286,44 @@ export const searchProducts = async (searchTerm, category = null, limitCount = 2
         collection(firestore, COLLECTIONS.PRODUCTS),
         where('isActive', '==', true),
         where('category', '==', category),
-        orderBy('createdAt', 'desc'),
         limit(limitCount)
       );
     } else {
       q = query(
         collection(firestore, COLLECTIONS.PRODUCTS),
         where('isActive', '==', true),
-        orderBy('createdAt', 'desc'),
         limit(limitCount)
       );
     }
     
     const querySnapshot = await getDocs(q);
-    const products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    let products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log('Found products before filtering:', products.length, products);
     
     // Client-side filtering for search term
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      return products.filter(product => 
+      products = products.filter(product => 
         product.name.toLowerCase().includes(searchLower) ||
         product.description.toLowerCase().includes(searchLower) ||
         (product.tags && product.tags.some(tag => tag.toLowerCase().includes(searchLower)))
       );
+      console.log('Found products after filtering:', products.length, products);
+    }
+    
+    // Sort manually by createdAt if products exist
+    if (products.length > 0) {
+      products.sort((a, b) => {
+        const aTime = a.createdAt?.toDate?.() || new Date(0);
+        const bTime = b.createdAt?.toDate?.() || new Date(0);
+        return bTime - aTime;
+      });
     }
     
     return products;
   } catch (error) {
     console.error('Error searching products:', error);
+    console.error('Error details:', error.message);
     throw error;
   }
 };

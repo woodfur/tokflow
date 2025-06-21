@@ -58,9 +58,12 @@ const MyStore = () => {
           }
           
           setStore(storeData);
+          console.log('Store data loaded:', storeData);
           
           // Load store products
+          console.log('Loading products for store ID:', storeData.id);
           const storeProducts = await getStoreProducts(storeData.id);
+          console.log('Store products loaded:', storeProducts);
           setProducts(storeProducts);
         } catch (error) {
           console.error('Error loading store data:', error);
@@ -72,6 +75,23 @@ const MyStore = () => {
 
     loadStoreData();
   }, [user, router]);
+
+  // Reload products when the page becomes visible (for when returning from add-product)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (!document.hidden && store) {
+        try {
+          const storeProducts = await getStoreProducts(store.id);
+          setProducts(storeProducts);
+        } catch (error) {
+          console.error('Error reloading products:', error);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [store]);
 
   const handleDeleteProduct = async (productId) => {
     setIsDeleting(true);
@@ -335,13 +355,13 @@ const MyStore = () => {
 
             {activeTab === 'products' && (
               <div>
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                   <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
                     Your Products ({products.length})
                   </h3>
                   <button
                     onClick={() => router.push('/add-product')}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white px-4 py-2 rounded-2xl transition-all duration-200"
+                    className="flex items-center justify-center space-x-2 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white px-4 py-2 rounded-2xl transition-all duration-200 w-full sm:w-auto"
                   >
                     <PlusIcon className="w-4 h-4" />
                     <span>Add Product</span>
@@ -365,7 +385,7 @@ const MyStore = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {products.map((product, index) => (
                       <motion.div
                         key={product.id}
@@ -438,10 +458,10 @@ const MyStore = () => {
                             </span>
                           </div>
                           
-                          <div className="flex space-x-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <button
                               onClick={() => router.push(`/edit-product/${product.id}`)}
-                              className="flex-1 flex items-center justify-center space-x-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-3 rounded-xl text-sm transition-colors"
+                              className="flex-1 flex items-center justify-center space-x-1 bg-blue-500 hover:bg-blue-600 text-white py-2.5 px-3 rounded-xl text-sm transition-colors min-h-[40px]"
                             >
                               <PencilIcon className="w-4 h-4" />
                               <span>Edit</span>
@@ -451,7 +471,7 @@ const MyStore = () => {
                                 setProductToDelete(product);
                                 setShowDeleteModal(true);
                               }}
-                              className="flex-1 flex items-center justify-center space-x-1 bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded-xl text-sm transition-colors"
+                              className="flex-1 flex items-center justify-center space-x-1 bg-red-500 hover:bg-red-600 text-white py-2.5 px-3 rounded-xl text-sm transition-colors min-h-[40px]"
                             >
                               <TrashIcon className="w-4 h-4" />
                               <span>Delete</span>
