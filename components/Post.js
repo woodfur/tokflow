@@ -54,7 +54,7 @@ const Post = ({
   
   // State management
   const [playing, setPlaying] = useState(false);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [likes, setLikes] = useState([]);
   const [hasLiked, setHasLiked] = useState(false);
   const [comments, setComments] = useState([]);
@@ -70,9 +70,23 @@ const Post = ({
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [loadingReply, setLoadingReply] = useState(false);
+  const [parentUsername, setParentUsername] = useState("");
   const [replies, setReplies] = useState({});
+  const [showCommentMenu, setShowCommentMenu] = useState(null);
+  const [showReplyMenu, setShowReplyMenu] = useState(null);
   const [commentLikes, setCommentLikes] = useState({});
   const [userCommentLikes, setUserCommentLikes] = useState({});
+  const [replyLikes, setReplyLikes] = useState({});
+  const [userReplyLikes, setUserReplyLikes] = useState({});
+  
+  // Seeking state
+  const [isDragging, setIsDragging] = useState(false);
+  
+  // Video session tracking for restart behavior
+  const [lastViewTime, setLastViewTime] = useState(0);
+  const [hasBeenViewed, setHasBeenViewed] = useState(false);
+  const viewStartTimeRef = useRef(null);
+  const shouldRestartRef = useRef(false);
   
   // Voice recording states
   const [isRecording, setIsRecording] = useState(false);
@@ -127,6 +141,15 @@ const Post = ({
     );
   }, [likes, user]);
 
+  // Calculate total comment count including replies
+  const getTotalCommentCount = () => {
+    let totalCount = comments.length;
+    Object.values(replies).forEach(replyArray => {
+      totalCount += replyArray.length;
+    });
+    return totalCount;
+  };
+
   // Fetch comments
   useEffect(() => {
     if (id) {
@@ -137,6 +160,19 @@ const Post = ({
       return unsubscribe;
     }
   }, [id]);
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.relative')) {
+        setShowCommentMenu(null);
+        setShowReplyMenu(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // Fetch replies for each comment
   useEffect(() => {
@@ -196,6 +232,42 @@ const Post = ({
     };
   }, [id, comments, user]);
 
+  // Fetch reply likes
+  useEffect(() => {
+    if (!id || Object.keys(replies).length === 0) return;
+
+    const unsubscribeReplyLikes = [];
+
+    Object.entries(replies).forEach(([commentId, replyArray]) => {
+      replyArray.forEach((replyDoc) => {
+        const likesRef = collection(db, "posts", id, "comments", commentId, "replies", replyDoc.id, "likes");
+        
+        const unsubscribe = onSnapshot(likesRef, (snapshot) => {
+          const likesData = snapshot.docs;
+          setReplyLikes(prev => ({
+            ...prev,
+            [`${commentId}_${replyDoc.id}`]: likesData
+          }));
+          
+          // Check if current user has liked this reply
+          if (user) {
+            const hasLiked = likesData.some(like => like.id === user.uid);
+            setUserReplyLikes(prev => ({
+              ...prev,
+              [`${commentId}_${replyDoc.id}`]: hasLiked
+            }));
+          }
+        });
+        
+        unsubscribeReplyLikes.push(unsubscribe);
+      });
+    });
+
+    return () => {
+      unsubscribeReplyLikes.forEach(unsubscribe => unsubscribe());
+    };
+  }, [id, replies, user]);
+
   // Auto-play video when component mounts and handle visibility
   useEffect(() => {
     if (videoRef.current) {
@@ -208,6 +280,16 @@ const Post = ({
           entries.forEach((entry) => {
             if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
               // Video is more than 50% visible, start playing
+              viewStartTimeRef.current = Date.now();
+              
+              // Check if video should restart from beginning
+              if (shouldRestartRef.current && hasBeenViewed) {
+                video.currentTime = 0;
+                setCurrentTime(0);
+                setProgress(0);
+                shouldRestartRef.current = false;
+              }
+              
               const playPromise = video.play();
               
               if (playPromise !== undefined) {
@@ -222,6 +304,20 @@ const Post = ({
               }
             } else {
               // Video is not visible enough, pause it
+              if (viewStartTimeRef.current) {
+                const viewDuration = Date.now() - viewStartTimeRef.current;
+                setLastViewTime(viewDuration);
+                setHasBeenViewed(true);
+                
+                // If user spent more than 2.5 seconds on another video,
+                // mark this video to restart from beginning when they return
+                if (viewDuration > 2500) {
+                  shouldRestartRef.current = true;
+                }
+                
+                viewStartTimeRef.current = null;
+              }
+              
               video.pause();
               setPlaying(false);
             }
@@ -246,7 +342,7 @@ const Post = ({
         observer.disconnect();
       };
     }
-  }, [video]); // Re-run when video source changes
+  }, [video, hasBeenViewed]); // Re-run when video source changes or view state changes
 
   // Video event handlers
   const handleVideoClick = () => {
@@ -653,14 +749,16 @@ const Post = ({
     setLoadingReply(false);
   };
 
-  const handleReplyClick = (commentId) => {
+  const handleReplyClick = (commentId, username) => {
     setReplyingTo(commentId);
-    setReplyText("");
+    setParentUsername(username);
+    setReplyText(`@${username} `);
   };
 
   const cancelReply = () => {
     setReplyingTo(null);
     setReplyText("");
+    setParentUsername("");
   };
 
   // Like comment functionality
@@ -686,6 +784,82 @@ const Post = ({
     }
   };
 
+  // Like reply functionality
+  const likeReply = async (commentId, replyId) => {
+    if (!user) {
+      toast.error("Please sign in to like replies");
+      return;
+    }
+    
+    try {
+      const replyLikeRef = doc(db, "posts", id, "comments", commentId, "replies", replyId, "likes", user.uid);
+      const replyKey = `${commentId}_${replyId}`;
+      
+      if (userReplyLikes[replyKey]) {
+        await deleteDoc(replyLikeRef);
+      } else {
+        await setDoc(replyLikeRef, {
+          username: user.displayName,
+          timestamp: serverTimestamp(),
+        });
+      }
+    } catch (error) {
+      toast.error("Error updating reply like");
+    }
+  };
+
+  // Delete comment functionality
+  const deleteComment = async (commentId) => {
+    if (!user) {
+      toast.error("Please sign in to delete comments");
+      return;
+    }
+    
+    try {
+      await deleteDoc(doc(db, "posts", id, "comments", commentId));
+      toast.success("Comment deleted!");
+      setShowCommentMenu(null);
+    } catch (error) {
+      toast.error("Error deleting comment");
+    }
+  };
+
+  // Delete reply functionality
+  const deleteReply = async (commentId, replyId) => {
+    if (!user) {
+      toast.error("Please sign in to delete replies");
+      return;
+    }
+    
+    try {
+      await deleteDoc(doc(db, "posts", id, "comments", commentId, "replies", replyId));
+      toast.success("Reply deleted!");
+      setShowReplyMenu(null);
+    } catch (error) {
+      toast.error("Error deleting reply");
+    }
+  };
+
+  // Copy comment functionality
+  const copyComment = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success("Comment copied to clipboard!");
+      setShowCommentMenu(null);
+    }).catch(() => {
+      toast.error("Failed to copy comment");
+    });
+  };
+
+  // Copy reply functionality
+  const copyReply = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success("Reply copied to clipboard!");
+      setShowReplyMenu(null);
+    }).catch(() => {
+      toast.error("Failed to copy reply");
+    });
+  };
+
   const formatTime = (time) => {
     if (isNaN(time)) return "0:00";
     const minutes = Math.floor(time / 60);
@@ -701,6 +875,109 @@ const Post = ({
     }
     return count.toString();
   };
+
+  // Video seeking functions
+  const handleProgressBarClick = (e) => {
+    if (!videoRef.current || duration === 0) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const newTime = (clickX / rect.width) * duration;
+    
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+    setProgress((newTime / duration) * 100);
+  };
+
+  const handleProgressBarMouseDown = (e) => {
+    setIsDragging(true);
+    handleProgressBarClick(e);
+  };
+
+  const handleProgressBarMouseMove = (e) => {
+    if (!isDragging || !videoRef.current || duration === 0) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const newTime = Math.max(0, Math.min((clickX / rect.width) * duration, duration));
+    
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+    setProgress((newTime / duration) * 100);
+  };
+
+  const handleProgressBarMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Touch events for mobile
+  const handleProgressBarTouchStart = (e) => {
+    setIsDragging(true);
+    const touch = e.touches[0];
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touchX = touch.clientX - rect.left;
+    const newTime = (touchX / rect.width) * duration;
+    
+    if (videoRef.current && duration > 0) {
+      videoRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+      setProgress((newTime / duration) * 100);
+    }
+  };
+
+  const handleProgressBarTouchMove = (e) => {
+    if (!isDragging || !videoRef.current || duration === 0) return;
+    
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touchX = touch.clientX - rect.left;
+    const newTime = Math.max(0, Math.min((touchX / rect.width) * duration, duration));
+    
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+    setProgress((newTime / duration) * 100);
+  };
+
+  const handleProgressBarTouchEnd = () => {
+    setIsDragging(false);
+  };
+
+  // Add global mouse event listeners for dragging
+  useEffect(() => {
+    const handleGlobalMouseMove = (e) => {
+      if (isDragging) {
+        const progressBar = document.querySelector('.progress-bar');
+        if (progressBar && videoRef.current && duration > 0) {
+          const rect = progressBar.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left;
+          const newTime = Math.max(0, Math.min((mouseX / rect.width) * duration, duration));
+          
+          videoRef.current.currentTime = newTime;
+          setCurrentTime(newTime);
+          setProgress((newTime / duration) * 100);
+        }
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener('touchmove', handleGlobalMouseMove);
+      document.addEventListener('touchend', handleGlobalMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('touchmove', handleGlobalMouseMove);
+      document.removeEventListener('touchend', handleGlobalMouseUp);
+    };
+  }, [isDragging, duration]);
 
   const sharePost = () => {
     if (navigator.share) {
@@ -759,7 +1036,7 @@ const Post = ({
     <motion.article
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.3 }}
       className="relative w-full h-screen overflow-hidden bg-black"
     >
       {/* Full Screen Video */}
@@ -789,59 +1066,18 @@ const Post = ({
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.15 }}
               onClick={handleVideoClick}
-              className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+              className="absolute inset-0 flex items-center justify-center bg-black/20"
             >
-              <div className="bg-white/90 backdrop-blur-sm rounded-full p-4 shadow-lg">
+              <div className="bg-white/90 rounded-full p-4 shadow-lg">
                 <PlayIcon className="w-8 h-8 text-neutral-800 ml-1" />
               </div>
             </motion.button>
           )}
         </AnimatePresence>
 
-        {/* Video Controls */}
-        <AnimatePresence>
-          {showControls && duration > 0 && !playing && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="absolute bottom-20 left-4 right-4 bg-black/50 backdrop-blur-sm rounded-2xl p-3"
-            >
-              {/* Progress Bar */}
-              <div className="mb-3">
-                <div className="w-full bg-white/30 rounded-full h-1">
-                  <div 
-                    className="bg-white h-1 rounded-full transition-all duration-100"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-              
-              {/* Controls Row */}
-              <div className="flex items-center justify-between text-white text-sm">
-                <div className="flex items-center space-x-3">
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={toggleMute}
-                    className="p-1 rounded-full hover:bg-white/20 transition-colors"
-                  >
-                    {muted ? (
-                      <SpeakerXMarkIcon className="w-5 h-5" />
-                    ) : (
-                      <SpeakerWaveIcon className="w-5 h-5" />
-                    )}
-                  </motion.button>
-                  <span className="font-medium">
-                    {formatTime(currentTime)} / {formatTime(duration)}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
       </motion.div>
 
       {/* Overlaid Post Details - TikTok Style */}
@@ -877,7 +1113,7 @@ const Post = ({
             <ChatBubbleOvalLeftIcon className="w-7 h-7 text-white" />
           </div>
           <span className="text-xs font-medium text-white">
-            {formatCount(comments.length)}
+            {formatCount(getTotalCommentCount())}
           </span>
         </motion.button>
 
@@ -955,14 +1191,12 @@ const Post = ({
               alt={username}
               className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg"
             />
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
           </div>
           <div>
             <div className="flex items-center space-x-1">
               <h3 className="font-semibold text-white text-lg">
                 {username}
               </h3>
-              {company && <CheckBadgeIcon className="w-5 h-5 text-green-500" />}
             </div>
             <p className="text-sm text-white/80">
               {timestamp?.toDate().toLocaleDateString()}
@@ -988,13 +1222,71 @@ const Post = ({
 
         {/* Song Name */}
         {songName && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 mb-2">
             <span className="text-white/80 text-sm">🎵</span>
             <p className="text-white/80 text-sm">
               {songName}
             </p>
           </div>
         )}
+
+        {/* Video Controls - Inline with content */}
+        <AnimatePresence>
+          {duration > 0 && !playing && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-black/50 rounded-2xl p-3 mb-2"
+            >
+              {/* Progress Bar */}
+              <div className="mb-3">
+                <div 
+                  className="progress-bar w-full bg-white/30 rounded-full h-2 cursor-pointer relative group"
+                  onClick={handleProgressBarClick}
+                  onMouseDown={handleProgressBarMouseDown}
+                  onTouchStart={handleProgressBarTouchStart}
+                  onTouchMove={handleProgressBarTouchMove}
+                  onTouchEnd={handleProgressBarTouchEnd}
+                >
+                  <div 
+                    className="bg-white h-2 rounded-full transition-all duration-100 relative"
+                    style={{ width: `${progress}%` }}
+                  >
+                    {/* Seek handle - visible on hover/drag */}
+                    <div 
+                      className={`absolute right-0 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg transition-opacity duration-200 ${
+                        isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      }`}
+                      style={{ right: '-8px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Controls Row */}
+              <div className="flex items-center justify-between text-white text-sm">
+                <div className="flex items-center space-x-3">
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={toggleMute}
+                    className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                  >
+                    {muted ? (
+                      <SpeakerXMarkIcon className="w-5 h-5" />
+                    ) : (
+                      <SpeakerWaveIcon className="w-5 h-5" />
+                    )}
+                  </motion.button>
+                  <span className="font-medium">
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
 
@@ -1017,7 +1309,7 @@ const Post = ({
               initial={{ opacity: 0, y: "100%" }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: "100%" }}
-              transition={{ duration: 0.3, type: "spring", damping: 25 }}
+              transition={{ duration: 0.15, type: "spring", damping: 35, stiffness: 200 }}
               className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-md z-[100] flex flex-col rounded-t-3xl max-h-[70vh] md:max-h-[80vh]"
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
@@ -1044,7 +1336,7 @@ const Post = ({
                 </h4>
               </div>
               <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
-                <span className="text-white text-sm font-medium">{comments.length}</span>
+                <span className="text-white text-sm font-medium">{getTotalCommentCount()}</span>
               </div>
             </div>
             
@@ -1151,22 +1443,53 @@ const Post = ({
                             
                             <motion.button
                               whileTap={{ scale: 0.9 }}
-                              onClick={() => handleReplyClick(commentDoc.id)}
+                              onClick={() => handleReplyClick(commentDoc.id, commentData.username)}
                               className="text-xs text-white/60 hover:text-blue-400 transition-colors touch-manipulation"
                             >
                               Reply
                             </motion.button>
                             
-                            {user && user.displayName === commentData.username && (
+                            <div className="relative">
                               <motion.button
                                 whileTap={{ scale: 0.9 }}
                                 className="opacity-0 group-hover:opacity-100 transition-opacity touch-manipulation"
+                                onClick={() => setShowCommentMenu(showCommentMenu === commentDoc.id ? null : commentDoc.id)}
+                                onTouchStart={(e) => {
+                                  const timer = setTimeout(() => {
+                                    setShowCommentMenu(commentDoc.id);
+                                  }, 500);
+                                  e.target.timer = timer;
+                                }}
+                                onTouchEnd={(e) => {
+                                  if (e.target.timer) {
+                                    clearTimeout(e.target.timer);
+                                  }
+                                }}
                               >
                                 <svg className="w-4 h-4 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                                 </svg>
                               </motion.button>
-                            )}
+                              
+                              {showCommentMenu === commentDoc.id && (
+                                     <div className="absolute right-0 top-6 bg-gray-900 bg-opacity-100 border border-gray-700 rounded-lg shadow-xl py-1 z-[60] min-w-[110px] backdrop-blur-sm">
+                                      <button
+                                        onClick={() => copyComment(commentData.comment)}
+                                        className="w-full px-3 py-1.5 text-left text-white text-xs hover:bg-gray-700 transition-colors"
+                                      >
+                                        Copy comment
+                                      </button>
+                                      {user && user.displayName === commentData.username && (
+                                        <button
+                                          onClick={() => deleteComment(commentDoc.id)}
+                                          className="w-full px-3 py-1.5 text-left text-red-400 text-xs hover:bg-gray-700 transition-colors"
+                                        >
+                                          Delete comment
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                            </div>
                           </div>
                           
                           {/* Replies Section */}
@@ -1246,6 +1569,83 @@ const Post = ({
                                             {replyData.reply}
                                           </p>
                                         )}
+                                      </div>
+                                      {/* Reply Actions */}
+                                      <div className="flex items-center justify-between mt-2 px-1">
+                                        <div className="flex items-center space-x-3">
+                                          <motion.button
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={() => likeReply(commentDoc.id, replyDoc.id)}
+                                            className="flex items-center space-x-1 text-white/60 hover:text-red-400 transition-colors"
+                                          >
+                                            <svg 
+                                              className="w-3 h-3" 
+                                              fill={userReplyLikes[`${commentDoc.id}_${replyDoc.id}`] ? "currentColor" : "none"} 
+                                              stroke="currentColor" 
+                                              viewBox="0 0 24 24"
+                                            >
+                                              <path 
+                                                strokeLinecap="round" 
+                                                strokeLinejoin="round" 
+                                                strokeWidth={2} 
+                                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+                                              />
+                                            </svg>
+                                            {replyLikes[`${commentDoc.id}_${replyDoc.id}`]?.length > 0 && (
+                                              <span className="text-xs">
+                                                {replyLikes[`${commentDoc.id}_${replyDoc.id}`].length}
+                                              </span>
+                                            )}
+                                          </motion.button>
+                                          <button 
+                                             onClick={() => handleReplyClick(commentDoc.id, replyData.username)}
+                                             className="text-xs text-white/60 hover:text-white transition-colors"
+                                           >
+                                             Reply
+                                           </button>
+                                        </div>
+                                        
+                                        <div className="relative">
+                                          <motion.button
+                                            whileTap={{ scale: 0.9 }}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity touch-manipulation"
+                                            onClick={() => setShowReplyMenu(showReplyMenu === replyDoc.id ? null : replyDoc.id)}
+                                            onTouchStart={(e) => {
+                                              const timer = setTimeout(() => {
+                                                setShowReplyMenu(replyDoc.id);
+                                              }, 500);
+                                              e.target.timer = timer;
+                                            }}
+                                            onTouchEnd={(e) => {
+                                              if (e.target.timer) {
+                                                clearTimeout(e.target.timer);
+                                              }
+                                            }}
+                                          >
+                                            <svg className="w-3 h-3 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                            </svg>
+                                          </motion.button>
+                                          
+                                          {showReplyMenu === replyDoc.id && (
+                                                 <div className="absolute right-0 top-6 bg-gray-900 bg-opacity-100 border border-gray-700 rounded-lg shadow-xl py-1 z-[60] min-w-[110px] backdrop-blur-sm">
+                                                  <button
+                                                    onClick={() => copyReply(replyData.reply)}
+                                                    className="w-full px-3 py-1.5 text-left text-white text-xs hover:bg-gray-700 transition-colors"
+                                                  >
+                                                    Copy reply
+                                                  </button>
+                                                  {user && user.displayName === replyData.username && (
+                                                    <button
+                                                      onClick={() => deleteReply(commentDoc.id, replyDoc.id)}
+                                                      className="w-full px-3 py-1.5 text-left text-red-400 text-xs hover:bg-gray-700 transition-colors"
+                                                    >
+                                                      Delete reply
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              )}
+                                        </div>
                                       </div>
                                     </div>
                                   </motion.div>
@@ -1423,7 +1823,7 @@ const Post = ({
                       alt={user.displayName}
                       className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-600/50 shadow-lg"
                     />
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900"></div>
+
                   </div>
                   
                   <div className="flex-1 flex items-end space-x-3">
@@ -1447,17 +1847,7 @@ const Post = ({
                           }}
                         />
                         
-                        {/* Emoji Button */}
-                        <motion.button
-                          type="button"
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          className="absolute right-2 bottom-3 p-1 text-gray-400 hover:text-yellow-400 transition-colors duration-200 touch-manipulation"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </motion.button>
+
                       </div>
                     )}
                     

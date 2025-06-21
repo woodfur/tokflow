@@ -46,7 +46,7 @@ const RightHandSide = () => {
     <motion.main
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.3 }}
       className="w-full h-screen overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
       style={{
         scrollBehavior: 'smooth',
@@ -64,10 +64,10 @@ const RightHandSide = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -50 }}
                 transition={{ 
-                  duration: 0.5, 
-                  delay: index * 0.1,
+                  duration: 0.3, 
+                  delay: index * 0.05,
                   type: "spring",
-                  stiffness: 100
+                  stiffness: 150
                 }}
                 className="w-full h-screen snap-start snap-always flex-shrink-0"
                 layout
@@ -91,7 +91,7 @@ const RightHandSide = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.3 }}
             className="w-full h-screen snap-start flex items-center justify-center"
           >
             <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-glass border border-neutral-200/50 p-12 max-w-md mx-auto">
