@@ -528,7 +528,7 @@ const MyStore = () => {
                 Delete Product
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-                Are you sure you want to delete "{productToDelete?.name}"? This action cannot be undone.
+                Are you sure you want to delete &quot;{productToDelete?.name}&quot;? This action cannot be undone.
               </p>
               <div className="flex space-x-3">
                 <button
