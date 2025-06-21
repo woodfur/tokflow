@@ -164,7 +164,13 @@ const Post = ({
   // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.relative')) {
+      // Check if click is outside menu containers
+      const isMenuClick = event.target.closest('[data-menu="comment-menu"]') || 
+                         event.target.closest('[data-menu="reply-menu"]') ||
+                         event.target.closest('[data-menu-trigger="comment"]') ||
+                         event.target.closest('[data-menu-trigger="reply"]');
+      
+      if (!isMenuClick) {
         setShowCommentMenu(null);
         setShowReplyMenu(null);
       }
@@ -1453,6 +1459,7 @@ const Post = ({
                               <motion.button
                                 whileTap={{ scale: 0.9 }}
                                 className="opacity-0 group-hover:opacity-100 transition-opacity touch-manipulation"
+                                data-menu-trigger="comment"
                                 onClick={() => setShowCommentMenu(showCommentMenu === commentDoc.id ? null : commentDoc.id)}
                                 onTouchStart={(e) => {
                                   const timer = setTimeout(() => {
@@ -1471,20 +1478,22 @@ const Post = ({
                                 </svg>
                               </motion.button>
                               
-                              {showCommentMenu === commentDoc.id && (
-                                     <div className="absolute right-0 top-6 bg-gray-900 bg-opacity-100 border border-gray-700 rounded-lg shadow-xl py-1 z-[60] min-w-[110px] backdrop-blur-sm">
-                                      <button
-                                        onClick={() => copyComment(commentData.comment)}
-                                        className="w-full px-3 py-1.5 text-left text-white text-xs hover:bg-gray-700 transition-colors"
-                                      >
-                                        Copy comment
-                                      </button>
+o looks like we hab                              {showCommentMenu === commentDoc.id && (
+                                     <div className="absolute right-0 top-6 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 z-[70] min-w-[110px]" data-menu="comment-menu">
+                                      {commentData.type !== 'voice' && (
+                                        <button
+                                          onClick={() => copyComment(commentData.comment)}
+                                          className="w-full px-3 py-1.5 text-left text-white text-xs hover:bg-gray-700 transition-colors"
+                                        >
+                                          Copy
+                                        </button>
+                                      )}
                                       {user && user.displayName === commentData.username && (
                                         <button
                                           onClick={() => deleteComment(commentDoc.id)}
                                           className="w-full px-3 py-1.5 text-left text-red-400 text-xs hover:bg-gray-700 transition-colors"
                                         >
-                                          Delete comment
+                                          Delete
                                         </button>
                                       )}
                                     </div>
@@ -1609,6 +1618,7 @@ const Post = ({
                                           <motion.button
                                             whileTap={{ scale: 0.9 }}
                                             className="opacity-0 group-hover:opacity-100 transition-opacity touch-manipulation"
+                                            data-menu-trigger="reply"
                                             onClick={() => setShowReplyMenu(showReplyMenu === replyDoc.id ? null : replyDoc.id)}
                                             onTouchStart={(e) => {
                                               const timer = setTimeout(() => {
@@ -1628,19 +1638,21 @@ const Post = ({
                                           </motion.button>
                                           
                                           {showReplyMenu === replyDoc.id && (
-                                                 <div className="absolute right-0 top-6 bg-gray-900 bg-opacity-100 border border-gray-700 rounded-lg shadow-xl py-1 z-[60] min-w-[110px] backdrop-blur-sm">
-                                                  <button
-                                                    onClick={() => copyReply(replyData.reply)}
-                                                    className="w-full px-3 py-1.5 text-left text-white text-xs hover:bg-gray-700 transition-colors"
-                                                  >
-                                                    Copy reply
-                                                  </button>
+                                                 <div className="absolute right-0 top-6 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 z-[70] min-w-[110px]" data-menu="reply-menu">
+                                                  {!replyData.audioData && (
+                                                    <button
+                                                      onClick={() => copyReply(replyData.reply)}
+                                                      className="w-full px-3 py-1.5 text-left text-white text-xs hover:bg-gray-700 transition-colors"
+                                                    >
+                                                      Copy
+                                                    </button>
+                                                  )}
                                                   {user && user.displayName === replyData.username && (
                                                     <button
                                                       onClick={() => deleteReply(commentDoc.id, replyDoc.id)}
                                                       className="w-full px-3 py-1.5 text-left text-red-400 text-xs hover:bg-gray-700 transition-colors"
                                                     >
-                                                      Delete reply
+                                                      Delete
                                                     </button>
                                                   )}
                                                 </div>
