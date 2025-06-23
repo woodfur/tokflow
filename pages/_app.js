@@ -5,6 +5,7 @@ import { auth } from '../firebase/firebase'
 import { useRouter } from 'next/router'
 import { useEffect } from 'react'
 import { CartProvider } from '../context/CartContext'
+import { createUserProfile, updateLastLogin } from '../utils/userProfile'
 
 function MyApp({ Component, pageProps }) {
   const [user, loading] = useAuthState(auth)
@@ -22,6 +23,20 @@ function MyApp({ Component, pageProps }) {
     // If user is authenticated and on signin page, redirect to home
     if (user && router.pathname === '/auth/signin') {
       router.push('/')
+    }
+    
+    // Create user profile when user first signs in
+    if (user && !loading) {
+      const initializeUserProfile = async () => {
+        try {
+          await createUserProfile(user)
+          await updateLastLogin(user.uid)
+        } catch (error) {
+          console.error('Error initializing user profile:', error)
+        }
+      }
+      
+      initializeUserProfile()
     }
   }, [user, loading, router.pathname, isPublicPage])
   
