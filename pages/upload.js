@@ -361,7 +361,7 @@ const Upload = () => {
                   <textarea
                     value={caption}
                     onChange={(e) => setCaption(e.target.value)}
-                    placeholder="What's happening? Share your moment with the world..."
+                    placeholder="What&apos;s happening? Share your moment with the world..."
                     rows={4}
                     maxLength={500}
                     className="w-full p-3 sm:p-4 bg-white/60 dark:bg-neutral-700/60 border border-neutral-200/50 dark:border-neutral-600/50 rounded-xl sm:rounded-2xl text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 focus:bg-white dark:focus:bg-neutral-700 resize-none transition-all duration-300 backdrop-blur-sm text-sm sm:text-base"

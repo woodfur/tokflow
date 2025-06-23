@@ -567,7 +567,7 @@ const Search = () => {
                     <div className="text-center py-8">
                       <MagnifyingGlassIcon className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
                       <p className="text-neutral-600 dark:text-neutral-400 text-lg">
-                        No results found for "{searchQuery}"
+                        No results found for &quot;{searchQuery}&quot;
                       </p>
                       <p className="text-neutral-500 dark:text-neutral-500 text-sm mt-2">
                         Try searching for something else
