@@ -223,7 +223,7 @@ const Store = () => {
               TokFlo Store
             </p>
             <p className="text-sm text-neutral-500 dark:text-neutral-500">
-              We're working hard to bring you an amazing shopping experience
+              We&apos;re working hard to bring you an amazing shopping experience
             </p>
           </motion.div>
           

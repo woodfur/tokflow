@@ -306,7 +306,7 @@ const OtherUserProfile = () => {
                     No posts yet
                   </p>
                   <p className="text-neutral-500 dark:text-neutral-500">
-                    This user hasn't shared any posts
+                    This user hasn&apos;t shared any posts
                   </p>
                 </div>
               )}
