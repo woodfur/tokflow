@@ -12,7 +12,7 @@ export default function Home() {
         <link rel="icon" href="/tokflo-favicon.svg" type="image/svg+xml" />
       </Head>
       
-      {/* "For you" text - Top left overlay */}
+      {/* &quot;For you&quot; text - Top left overlay */}
       <div className="fixed top-4 left-4 z-50">
         <div className="flex items-center space-x-2 px-3 py-2 bg-black/30 backdrop-blur-sm rounded-full">
           <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
