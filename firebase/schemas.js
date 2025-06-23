@@ -9,6 +9,44 @@ export const COLLECTIONS = {
   USERS: 'users'
 };
 
+// User Schema
+export const UserSchema = {
+  uid: 'string', // Firebase Auth user ID
+  email: 'string', // User email
+  displayName: 'string', // User display name
+  photoURL: 'string', // Profile image URL
+  bio: 'string', // User bio/description
+  location: 'string', // User location
+  website: 'string', // User website
+  phoneNumber: 'string', // User phone number
+  // Social media links
+  socialLinks: {
+    twitter: 'string',
+    instagram: 'string',
+    linkedin: 'string',
+    youtube: 'string'
+  },
+  // User preferences
+  preferences: {
+    emailNotifications: 'boolean',
+    pushNotifications: 'boolean',
+    marketingEmails: 'boolean',
+    theme: 'string' // 'light' or 'dark'
+  },
+  // Store-related fields
+  hasStore: 'boolean',
+  storeId: 'string', // Reference to store document
+  // Activity tracking
+  totalPosts: 'number',
+  totalLikes: 'number',
+  totalFollowers: 'number',
+  totalFollowing: 'number',
+  // Timestamps
+  createdAt: 'timestamp',
+  updatedAt: 'timestamp',
+  lastLoginAt: 'timestamp'
+};
+
 // Store Schema
 export const StoreSchema = {
   id: 'string', // Auto-generated document ID
