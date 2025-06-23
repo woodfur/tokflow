@@ -25,6 +25,7 @@ import toast from "react-hot-toast";
 import { firestore, auth, storage } from "../firebase/firebase";
 import { getUserProfile, updateUserProfile } from "../utils/userProfile";
 import CustomPosts from "./CustomPosts";
+import ImageCropper from "./ImageCropper";
 
 const UserProfile = () => {
   const router = useRouter();
@@ -34,6 +35,8 @@ const UserProfile = () => {
   const [isShow, setIsShow] = useState(true);
   const [activeTab, setActiveTab] = useState('posts');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [editData, setEditData] = useState({ username: '', bio: '', profileImage: null });
   const [loading, setLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState([]);
@@ -243,7 +246,40 @@ const UserProfile = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setEditData({ ...editData, profileImage: file });
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select a valid image file.');
+        return;
+      }
+      
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size too large. Please select an image under 5MB.');
+        return;
+      }
+      
+      // Create preview URL and show crop modal
+      const imageUrl = URL.createObjectURL(file);
+      setSelectedImage(imageUrl);
+      setShowCropModal(true);
+    }
+  };
+
+  const handleCropComplete = (croppedFile) => {
+    setEditData({ ...editData, profileImage: croppedFile });
+    setShowCropModal(false);
+    if (selectedImage) {
+      URL.revokeObjectURL(selectedImage);
+      setSelectedImage(null);
+    }
+    toast.success('Image cropped successfully!');
+  };
+
+  const handleCropCancel = () => {
+    setShowCropModal(false);
+    if (selectedImage) {
+      URL.revokeObjectURL(selectedImage);
+      setSelectedImage(null);
     }
   };
 
@@ -522,44 +558,48 @@ const UserProfile = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
             onClick={() => setShowEditModal(false)}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-neutral-800 rounded-2xl p-6 w-full max-w-md mx-auto shadow-2xl"
+              className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl border border-neutral-200/20 dark:border-neutral-700/30 rounded-3xl p-8 w-full max-w-lg mx-auto shadow-2xl shadow-black/10 dark:shadow-black/30"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100 tracking-tight">
                   Edit Profile
                 </h3>
                 <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05, backgroundColor: "rgba(0,0,0,0.05)" }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setShowEditModal(false)}
-                  className="p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                  className="p-3 rounded-full hover:bg-neutral-100/80 dark:hover:bg-neutral-700/50 transition-all duration-200 backdrop-blur-sm"
                 >
-                  <XMarkIcon className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
+                  <XMarkIcon className="w-5 h-5 text-neutral-500 dark:text-neutral-400" />
                 </motion.button>
               </div>
 
               {/* Profile Image Section */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              <div className="mb-8">
+                <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-4 tracking-wide">
                   Profile Image
                 </label>
-                <div className="flex items-center gap-4">
-                  <div
-                    className="w-16 h-16 bg-cover bg-center bg-no-repeat rounded-full border-2 border-neutral-200 dark:border-neutral-600"
-                    style={{
-                      backgroundImage: editData.profileImage 
-                        ? `url(${URL.createObjectURL(editData.profileImage)})` 
-                        : `url(${userData.profileImage})`,
-                    }}
-                  ></div>
+                <div className="flex items-center gap-6">
+                  <div className="relative group">
+                    <div
+                      className="w-20 h-20 bg-cover bg-center bg-no-repeat rounded-2xl border-2 border-neutral-200/50 dark:border-neutral-600/50 shadow-lg transition-all duration-300 group-hover:shadow-xl group-hover:scale-105"
+                      style={{
+                        backgroundImage: editData.profileImage 
+                          ? `url(${URL.createObjectURL(editData.profileImage)})` 
+                          : `url(${userData.profileImage})`,
+                      }}
+                    ></div>
+                    <div className="absolute inset-0 bg-black/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </div>
                   <input
                     type="file"
                     accept="image/*"
@@ -567,50 +607,52 @@ const UserProfile = () => {
                     className="hidden"
                     id="profile-image-input"
                   />
-                  <label
+                  <motion.label
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     htmlFor="profile-image-input"
-                    className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors cursor-pointer text-sm font-medium"
+                    className="px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all duration-200 cursor-pointer text-sm font-semibold shadow-lg hover:shadow-xl backdrop-blur-sm"
                   >
                     Change Photo
-                  </label>
+                  </motion.label>
                 </div>
               </div>
 
               {/* Username */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-3 tracking-wide">
                   Username
                 </label>
                 <input
                   type="text"
                   value={editData.username}
                   onChange={(e) => setEditData({ ...editData, username: e.target.value })}
-                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
+                  className="w-full px-4 py-3 border border-neutral-200/60 dark:border-neutral-600/60 rounded-xl bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 focus:bg-white dark:focus:bg-neutral-800 transition-all duration-200 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                   placeholder="Enter username"
                 />
               </div>
 
               {/* Bio */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              <div className="mb-8">
+                <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-3 tracking-wide">
                   Bio
                 </label>
                 <textarea
                   value={editData.bio}
                   onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors resize-none"
-                  placeholder="Tell us about yourself"
+                  rows={4}
+                  className="w-full px-4 py-3 border border-neutral-200/60 dark:border-neutral-600/60 rounded-xl bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 focus:bg-white dark:focus:bg-neutral-800 transition-all duration-200 resize-none placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                  placeholder="Tell us about yourself..."
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3">
+              <div className="flex gap-4 pt-2">
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.02, backgroundColor: "rgba(0,0,0,0.05)" }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setShowEditModal(false)}
-                  className="flex-1 px-4 py-2 border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors font-medium"
+                  className="flex-1 px-6 py-3 border border-neutral-200/60 dark:border-neutral-600/60 text-neutral-700 dark:text-neutral-300 rounded-xl hover:bg-neutral-50/80 dark:hover:bg-neutral-700/50 transition-all duration-200 font-semibold backdrop-blur-sm"
                 >
                   Cancel
                 </motion.button>
@@ -619,7 +661,7 @@ const UserProfile = () => {
                   whileTap={{ scale: 0.98 }}
                   onClick={handleProfileUpdate}
                   disabled={loading}
-                  className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl hover:from-primary-600 hover:to-primary-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-primary-500 disabled:hover:to-primary-600 transition-all duration-200 font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl backdrop-blur-sm"
                 >
                   {loading ? (
                     <>
@@ -636,25 +678,18 @@ const UserProfile = () => {
         )}
       </AnimatePresence>
 
-      {/* Logout Button - Show for any logged-in user */}
-      {user && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mt-8 mb-4 flex justify-center"
-        >
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors shadow-lg"
-          >
-            <ArrowRightOnRectangleIcon className="w-5 h-5" />
-            Logout
-          </motion.button>
-        </motion.div>
-      )}
+      {/* Image Cropper Modal */}
+      <AnimatePresence>
+        {showCropModal && selectedImage && (
+          <ImageCropper
+            imageSrc={selectedImage}
+            onCropComplete={handleCropComplete}
+            onCancel={handleCropCancel}
+          />
+        )}
+      </AnimatePresence>
+
+
     </motion.div>
   );
 };
