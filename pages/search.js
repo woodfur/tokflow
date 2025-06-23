@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import { motion } from "framer-motion";
-import { MagnifyingGlassIcon, ArrowTrendingUpIcon, UserIcon, HashtagIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon, ArrowTrendingUpIcon, UserIcon, HashtagIcon, VideoCameraIcon, PlusIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { collection, query, where, orderBy, limit, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, getDocs, onSnapshot, doc, setDoc, deleteDoc, updateDoc, increment, getDoc } from "firebase/firestore";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import toast from "react-hot-toast";
 
 import MobileNavigation from "../components/MobileNavigation";
 import { auth, firestore } from "../firebase/firebase";
@@ -16,6 +17,8 @@ const Search = () => {
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchResults, setSearchResults] = useState({ users: [], posts: [], hashtags: [] });
   const [suggestedUsers, setSuggestedUsers] = useState([]);
+  const [followingUsers, setFollowingUsers] = useState(new Set());
+  const [followingLoading, setFollowingLoading] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const router = useRouter();
@@ -56,58 +59,143 @@ const Search = () => {
     }
   ];
 
+  // Handle follow/unfollow functionality
+  const handleFollow = async (e, targetUserId) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      toast.error('Please log in to follow users');
+      return;
+    }
+
+    setFollowingLoading(prev => new Set([...prev, targetUserId]));
+
+    try {
+      const isFollowing = followingUsers.has(targetUserId);
+      
+      if (isFollowing) {
+        // Unfollow
+        await deleteDoc(doc(firestore, "users", user.uid, "following", targetUserId));
+        await deleteDoc(doc(firestore, "users", targetUserId, "followers", user.uid));
+        
+        // Update follower count for target user
+        await updateDoc(doc(firestore, "users", targetUserId), {
+          followerCount: increment(-1)
+        });
+        
+        // Update following count for current user
+        await updateDoc(doc(firestore, "users", user.uid), {
+          totalFollowing: increment(-1)
+        });
+        
+        setFollowingUsers(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(targetUserId);
+          return newSet;
+        });
+        
+        toast.success('Unfollowed successfully');
+      } else {
+        // Follow
+        await setDoc(doc(firestore, "users", user.uid, "following", targetUserId), {
+          timestamp: new Date()
+        });
+        await setDoc(doc(firestore, "users", targetUserId, "followers", user.uid), {
+          timestamp: new Date()
+        });
+        
+        // Update follower count for target user
+        await updateDoc(doc(firestore, "users", targetUserId), {
+          followerCount: increment(1)
+        });
+        
+        // Update following count for current user
+        await updateDoc(doc(firestore, "users", user.uid), {
+          totalFollowing: increment(1)
+        });
+        
+        setFollowingUsers(prev => new Set([...prev, targetUserId]));
+        
+        toast.success('Followed successfully');
+      }
+    } catch (error) {
+      console.error('Error following/unfollowing user:', error);
+      toast.error('Failed to update follow status');
+    } finally {
+      setFollowingLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(targetUserId);
+        return newSet;
+      });
+    }
+  };
+
   // Fetch suggested users from Firebase
   useEffect(() => {
     const fetchSuggestedUsers = async () => {
       try {
-        console.log("Fetching suggested users from Firebase...");
-        const postsQuery = query(
-          collection(firestore, "posts"),
-          orderBy("timestamp", "desc"),
-          limit(20)
-        );
-        const postsSnapshot = await getDocs(postsQuery);
-        console.log("Posts found:", postsSnapshot.docs.length);
-        
-        // Get unique users from recent posts
-        const userMap = new Map();
-        postsSnapshot.docs.forEach(doc => {
-          const postData = doc.data();
-          console.log("Post data:", postData);
-          if (postData.userId && postData.userId !== user?.uid) {
-            userMap.set(postData.userId, {
-              id: postData.userId,
-              username: postData.username || 'Unknown User',
-              name: postData.name || postData.username || 'Unknown User',
-              profileImg: postData.profileImg || null,
-              verified: false // You can add verification logic later
-            });
-          }
-        });
-        
-        const fetchedUsers = Array.from(userMap.values()).slice(0, 5);
-        console.log("Fetched users:", fetchedUsers);
-        
-        // If no users found from posts, use fallback users
-        if (fetchedUsers.length === 0) {
-          console.log("No users found in posts, using fallback users");
+        if (!user) {
+          // If no user, show fallback suggested users (no filtering needed)
           setSuggestedUsers(fallbackSuggestedUsers);
-        } else {
-          setSuggestedUsers(fetchedUsers);
+          return;
         }
+
+        // Try to fetch real users from Firebase
+        const usersQuery = query(
+          collection(firestore, "users"),
+          limit(10)
+        );
+        const usersSnapshot = await getDocs(usersQuery);
+        
+        let fetchedUsers = [];
+        
+        if (usersSnapshot.empty) {
+          // If no users in database, use fallback and filter out current user
+          fetchedUsers = fallbackSuggestedUsers.filter(userData => userData.id !== user.uid);
+        } else {
+          // Filter out current user and map the data
+          fetchedUsers = usersSnapshot.docs
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              // Ensure we have required fields with fallbacks
+              username: doc.data().username || 'Anonymous User',
+              name: doc.data().name || doc.data().displayName || doc.data().username || 'Anonymous User',
+              profileImg: doc.data().profileImg || doc.data().photoURL || null,
+              verified: doc.data().verified || false
+            }))
+            .filter(userData => userData.id !== user.uid);
+        }
+        
+        setSuggestedUsers(fetchedUsers);
+        
+        // Check which users the current user is following (only if user is logged in)
+        if (user) {
+          const followingSet = new Set();
+          for (const userData of fetchedUsers) {
+            try {
+              const followDoc = await getDoc(doc(firestore, "users", user.uid, "following", userData.id));
+              if (followDoc.exists()) {
+                followingSet.add(userData.id);
+              }
+            } catch (error) {
+              console.log("Error checking follow status for user:", userData.id, error);
+            }
+          }
+          setFollowingUsers(followingSet);
+        }
+        
       } catch (error) {
         console.error("Error fetching suggested users:", error);
-        // Use fallback users on error
-        setSuggestedUsers(fallbackSuggestedUsers);
+        // Fallback to predefined users if fetch fails
+        const filteredFallback = user 
+          ? fallbackSuggestedUsers.filter(userData => userData.id !== user.uid)
+          : fallbackSuggestedUsers;
+        setSuggestedUsers(filteredFallback);
       }
     };
 
-    if (user) {
-      fetchSuggestedUsers();
-    } else {
-      // Show fallback users even when not logged in
-      setSuggestedUsers(fallbackSuggestedUsers);
-    }
+    fetchSuggestedUsers();
   }, [user]);
 
   // Search functionality
@@ -582,14 +670,27 @@ const Search = () => {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="px-4 py-2 bg-primary-500 text-white rounded-full font-medium hover:bg-primary-600 transition-colors duration-200 flex-shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Add follow functionality here
-                          console.log('Follow user:', suggestedUser.id);
-                        }}
+                        onClick={(e) => handleFollow(e, suggestedUser.id)}
+                        disabled={followingLoading.has(suggestedUser.id)}
+                        className={`px-4 py-2 rounded-full font-medium transition-all duration-200 flex-shrink-0 flex items-center space-x-1 ${
+                          followingUsers.has(suggestedUser.id)
+                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            : 'bg-primary-500 text-white hover:bg-primary-600'
+                        } ${followingLoading.has(suggestedUser.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
-                        Follow
+                        {followingLoading.has(suggestedUser.id) ? (
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : followingUsers.has(suggestedUser.id) ? (
+                          <>
+                            <CheckIcon className="w-4 h-4" />
+                            <span>Following</span>
+                          </>
+                        ) : (
+                          <>
+                            <PlusIcon className="w-4 h-4" />
+                            <span>Follow</span>
+                          </>
+                        )}
                       </motion.button>
                     </motion.div>
                   ))}

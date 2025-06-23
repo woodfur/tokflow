@@ -145,6 +145,10 @@ const UserProfile = () => {
       if (docSnapshot.exists()) {
         const profileData = { id: docSnapshot.id, ...docSnapshot.data() };
         setUserData(profileData);
+        // Update follower/following counts from real-time data
+        setFollowersCount(profileData.totalFollowers || 0);
+        setFollowingCount(profileData.totalFollowing || 0);
+        setLikesCount(profileData.totalLikes || 0);
       } else {
         // Fallback to auth user data if no profile exists
         setUserData({
@@ -153,6 +157,10 @@ const UserProfile = () => {
           photoURL: user.photoURL,
           bio: 'No bio available'
         });
+        // Reset counts for fallback
+        setFollowersCount(0);
+        setFollowingCount(0);
+        setLikesCount(0);
       }
     }, (error) => {
       console.error("Error listening to user profile:", error);
@@ -163,6 +171,10 @@ const UserProfile = () => {
         photoURL: user.photoURL,
         bio: 'No bio available'
       });
+      // Reset counts for error fallback
+      setFollowersCount(0);
+      setFollowingCount(0);
+      setLikesCount(0);
     });
 
     return () => unsubscribe();
