@@ -99,8 +99,8 @@ const Upload = () => {
     setIsUploading(true);
     
     try {
-      // Check network connectivity
-      if (!navigator.onLine) {
+      // Check network connectivity (only in browser)
+      if (typeof window !== 'undefined' && !navigator.onLine) {
         throw new Error('No internet connection. Please check your network and try again.');
       }
 

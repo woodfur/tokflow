@@ -51,7 +51,7 @@ const MobileNavigation = () => {
       label: "Profile",
       icon: UserIcon,
       path: user ? `/user/${user.uid}` : "/auth/signin",
-      isActive: currentPath.startsWith("/user/") || currentPath === "/profile",
+      isActive: currentPath.startsWith("/user/"),
       avatar: user?.photoURL,
     },
   ];

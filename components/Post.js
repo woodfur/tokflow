@@ -1189,7 +1189,7 @@ const Post = ({
         <motion.div 
           className="flex items-center space-x-3 mb-3 cursor-pointer"
           whileHover={{ scale: 1.02 }}
-          onClick={() => router.push(`/profile/${username}`)}
+          onClick={() => router.push(`/user/${userId}`)}
         >
           <div className="relative">
             <img

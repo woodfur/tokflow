@@ -225,7 +225,7 @@ const Header = ({ isShow }) => {
                     
                     <button
                       onClick={() => {
-                        router.push("/profile");
+                        router.push(`/user/${user?.uid}`);
                         setDropMenu(false);
                       }}
                       className="w-full text-left px-4 py-2 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/50 transition-colors duration-200 text-neutral-700 dark:text-neutral-300"
