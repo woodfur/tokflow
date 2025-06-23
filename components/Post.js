@@ -988,7 +988,7 @@ const Post = ({
   const sharePost = () => {
     if (navigator.share) {
       navigator.share({
-        title: `${username}'s post`,
+        title: `${username}&apos;s post`,
         text: caption,
         url: window.location.href,
       });
