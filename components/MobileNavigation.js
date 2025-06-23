@@ -35,8 +35,8 @@ const MobileNavigation = () => {
       id: "upload",
       label: "Upload",
       icon: PlusIcon,
-      path: "/pin/create",
-      isActive: currentPath === "/pin/create",
+      path: "/upload",
+      isActive: currentPath === "/upload",
       isSpecial: true, // This will be styled differently as the plus button
     },
     {
