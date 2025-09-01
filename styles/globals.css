@@ -14,9 +14,10 @@
 
 /* Glass morphism effect */
 .shadow-glass {
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  /* Softer, more diffused glass shadow */
+  box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.18), 0 4px 12px -6px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 /* Line clamp utilities */
@@ -93,16 +94,16 @@
 
 /* Enhanced button styles */
 .btn-primary {
-  @apply bg-gradient-to-r from-primary-500 to-accent-500 text-white font-semibold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95;
+  @apply bg-gradient-to-r from-primary-500 to-accent-500 text-white font-semibold py-3 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95;
 }
 
 .btn-secondary {
-  @apply bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200/50 dark:border-neutral-700/50 text-neutral-700 dark:text-neutral-300 font-medium py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-white/90 dark:hover:bg-neutral-800/90;
+  @apply bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200/50 dark:border-neutral-700/50 text-neutral-700 dark:text-neutral-300 font-medium py-3 px-6 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 hover:bg-white/90 dark:hover:bg-neutral-800/90;
 }
 
 /* Card styles */
 .card {
-  @apply bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 shadow-lg hover:shadow-xl transition-all duration-300;
+  @apply bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 shadow-card hover:shadow-lg transition-all duration-300;
 }
 
 /* Input styles */
@@ -127,7 +128,7 @@
 }
 
 .product-card {
-  @apply bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300;
+  @apply bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden shadow-md hover:shadow-lg transition-all duration-300;
 }
 
 .product-image {
@@ -152,11 +153,11 @@
 }
 
 .category-btn-active {
-  @apply bg-gradient-to-br from-primary-500 via-primary-600 to-accent-500 text-white shadow-xl shadow-primary-500/25;
+  @apply bg-gradient-to-br from-primary-500 via-primary-600 to-accent-500 text-white shadow-lg shadow-primary-500/20;
 }
 
 .category-btn-inactive {
-  @apply bg-white/70 dark:bg-neutral-800/70 text-neutral-700 dark:text-neutral-300 hover:bg-white/90 dark:hover:bg-neutral-800/90 border border-neutral-200/50 dark:border-neutral-700/50 hover:shadow-lg;
+  @apply bg-white/70 dark:bg-neutral-800/70 text-neutral-700 dark:text-neutral-300 hover:bg-white/90 dark:hover:bg-neutral-800/90 border border-neutral-200/50 dark:border-neutral-700/50 hover:shadow-md;
 }
 
 /* Search bar enhancements */

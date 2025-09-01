@@ -32,6 +32,8 @@ import { PaperAirplaneIcon } from "@heroicons/react/24/outline";
 
 import { auth, firestore } from "../../firebase/firebase";
 import Comments from "../Comments";
+// toast imported above
+import { rewriteToCDN } from "../../utils/cdn";
 
 const dropDwonMenuItems = [
   {
@@ -191,19 +193,12 @@ const VideoDetail = ({
   }, [topic]);
 
   useEffect(() => {
-    if (video.includes("firebasestorage.googleapis.com")) {
-      const chekerUrl = video.replace(
-        "firebasestorage.googleapis.com",
-        "tiktokClone.com"
-      );
-      setVideoLink(chekerUrl);
-    } else if (video.includes("drive.google.com")) {
-      const chekerUrl = video.replace("drive.google.com", "tiktokClone.com");
-      setVideoLink(chekerUrl);
-    } else if (video.includes("mega.nz/embed")) {
-      const chekerUrl = video.replace("mega.nz/embed", "tiktokClone.com");
-      setVideoLink(chekerUrl);
-    }
+-    if (video.includes("firebasestorage.googleapis.com")) {
+-      const chekerUrl = video.replace(
+-        "firebasestorage.googleapis.com",
+-        "tiktokClone.com"
+    const rewritten = rewriteToCDN(video);
+    setVideoLink(rewritten || video);
   }, [video]);
 
   // This is the function we wrote earlier
@@ -253,7 +248,7 @@ const VideoDetail = ({
                   ref={videoRef}
                   onClick={onVideoClick}
                   loop
-                  src={video}
+                  src={videoLink || rewriteToCDN(video) || video}
                   className=" h-full cursor-pointer"
                   autoPlay
                   muted
@@ -289,7 +284,7 @@ const VideoDetail = ({
                 <img
                   alt="user-profile"
                   className="rounded-full w-12 h-12"
-                  src={profileImage}
+                  src={rewriteToCDN(profileImage) || profileImage}
                 />
                 <div>
                   <div className="text-xl font-bold lowercase tracking-wider flex gap-2 items-center justify-start">

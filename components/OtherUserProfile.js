@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { onSnapshot, query, collection, orderBy, doc, where, getDocs, getDoc, setDoc, deleteDoc, updateDoc, increment } from "firebase/firestore";
+import { onSnapshot, query, collection, doc, where, getDocs, getDoc, setDoc, deleteDoc, updateDoc, increment } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   UserPlusIcon,
@@ -16,6 +16,7 @@ import toast from "react-hot-toast";
 
 import { firestore, auth } from "../firebase/firebase";
 import CustomPosts from "./CustomPosts";
+import { rewriteToCDN } from "../utils/cdn";
 
 const OtherUserProfile = () => {
   const router = useRouter();
@@ -61,16 +62,27 @@ const OtherUserProfile = () => {
 
     const q = query(
       collection(firestore, "posts"), 
-      where("userId", "==", profileUserId),
-      orderBy("timestamp", "desc")
+      where("userId", "==", profileUserId)
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const postsData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setPosts(postsData);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const postsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        // Sort client-side to avoid composite index requirement
+        postsData.sort((a, b) => {
+          const aTs = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+          const bTs = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
+          return bTs - aTs;
+        });
+        setPosts(postsData);
+      },
+      (error) => {
+        console.error("Error fetching profile user's posts:", error);
+      }
+    );
 
     return () => unsubscribe();
   }, [profileUserId]);
@@ -201,7 +213,7 @@ const OtherUserProfile = () => {
           <div className="relative inline-block mb-4">
             {userData.photoURL || userData.profileImg ? (
               <img
-                src={userData.photoURL || userData.profileImg}
+                src={rewriteToCDN(userData.photoURL || userData.profileImg)}
                 alt={userData.displayName || userData.username}
                 className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-neutral-800 shadow-lg"
               />
@@ -298,7 +310,11 @@ const OtherUserProfile = () => {
           {activeTab === 'posts' && (
             <div>
               {posts.length > 0 ? (
-                <CustomPosts posts={posts} />
+                <div className="grid grid-cols-3 gap-1 sm:gap-2">
+                  {posts.map((post, index) => (
+                    <CustomPosts key={post.id} post={post} index={index} />
+                  ))}
+                </div>
               ) : (
                 <div className="text-center py-12">
                   <Squares2X2Icon className="w-16 h-16 text-neutral-400 mx-auto mb-4" />

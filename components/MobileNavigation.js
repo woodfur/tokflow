@@ -71,30 +71,33 @@ const MobileNavigation = () => {
           : "bg-white/95 dark:bg-neutral-900/95"
       }`}
     >
-      <div className="flex items-center justify-around px-2 py-2 safe-area-bottom">
+      <div className="flex items-center justify-around px-2 pt-0 pb-2 safe-area-bottom overflow-visible">
         {navItems.map((item) => {
           const IconComponent = item.icon;
           
           return (
             <motion.button
               key={item.id}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={item.isSpecial ? { scale: 1.02 } : { scale: 1.05 }}
+              // Keep hover animation only for special button (no tap/press animation)
+              whileTap={item.isSpecial ? undefined : { scale: 0.95 }}
               onClick={() => handleNavigation(item)}
               className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-200 ${
                 item.isSpecial
-                  ? "bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-lg min-w-[48px] h-12"
+                  ? "text-primary-600 min-w-[56px] h-14 -translate-y-1/4 origin-bottom z-10"
                   : item.isActive
                   ? "text-primary-600 dark:text-primary-400"
-                  : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
+                  : (currentPath === "/" && (item.id === "search" || item.id === "store"))
+                  ? "text-white/90 hover:text-white dark:text-white/90 dark:hover:text-white"
+                  : "text-neutral-800 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100"
               }`}
             >
               {/* Special styling for upload button */}
               {item.isSpecial ? (
-                <div className="relative">
-                  <IconComponent className="w-6 h-6" />
-                  {/* Decorative elements for the plus button */}
-                  <div className="absolute -inset-1 bg-gradient-to-r from-primary-500 to-accent-500 rounded-xl blur opacity-30 -z-10"></div>
+                <div className="relative -translate-y-1/4">
+                  <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-lg border border-white ring-2 ring-primary-500/80">
+                     <IconComponent className="w-8 h-8 text-primary-600" strokeWidth={2} />
+                   </div>
                 </div>
               ) : item.id === "profile" && item.avatar ? (
                 /* Profile avatar */
@@ -102,7 +105,7 @@ const MobileNavigation = () => {
                   <img
                     src={item.avatar}
                     alt="Profile"
-                    className={`w-6 h-6 rounded-full object-cover border-2 ${
+                    className={`w-7 h-7 rounded-full object-cover border-2 ${
                       item.isActive
                         ? "border-primary-500"
                         : "border-neutral-300 dark:border-neutral-600"
@@ -115,24 +118,13 @@ const MobileNavigation = () => {
               ) : (
                 /* Regular icons */
                 <IconComponent
-                  className={`w-6 h-6 ${
+                  className={`w-7 h-7 ${
                     item.isActive ? "fill-current" : ""
                   }`}
                 />
               )}
               
-              {/* Label - Hide for upload button */}
-              {!item.isSpecial && (
-                <span
-                  className={`text-xs mt-1 font-medium ${
-                    item.isActive
-                      ? "text-primary-600 dark:text-primary-400"
-                      : "text-neutral-600 dark:text-neutral-400"
-                  }`}
-                >
-                  {item.label}
-                </span>
-              )}
+              {/* Labels removed in new design */}
               
               {/* Active indicator */}
               {item.isActive && !item.isSpecial && (

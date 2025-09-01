@@ -173,18 +173,18 @@ export const borderRadius = {
 
 // Shadows
 export const boxShadow = {
-  sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-  DEFAULT: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
-  md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-  lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-  xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
-  '2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
-  inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)',
+  sm: '0 1px 1.5px 0 rgb(15 23 42 / 0.05)',
+  DEFAULT: '0 1px 2px 0 rgb(15 23 42 / 0.06), 0 1px 1px -1px rgb(15 23 42 / 0.04)',
+  md: '0 2px 6px -1px rgb(15 23 42 / 0.06), 0 1px 3px -2px rgb(15 23 42 / 0.04)',
+  lg: '0 6px 16px -4px rgb(15 23 42 / 0.08), 0 2px 6px -2px rgb(15 23 42 / 0.06)',
+  xl: '0 12px 24px -8px rgb(15 23 42 / 0.12), 0 4px 12px -6px rgb(15 23 42 / 0.06)',
+  '2xl': '0 24px 48px -12px rgb(15 23 42 / 0.18)',
+  inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.04)',
   none: 'none',
-  // Custom TokFlo shadows
-  card: '0 4px 12px 0 rgb(0 0 0 / 0.05)',
-  modal: '0 20px 40px -4px rgb(0 0 0 / 0.1)',
-  button: '0 2px 8px 0 rgb(0 0 0 / 0.1)',
+  // Custom TokFlo shadows (softened)
+  card: '0 6px 20px -8px rgb(15 23 42 / 0.08)',
+  modal: '0 20px 40px -10px rgb(15 23 42 / 0.16)',
+  button: '0 2px 6px 0 rgb(15 23 42 / 0.08)',
 };
 
 // Animation & Transitions
