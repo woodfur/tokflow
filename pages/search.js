@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 
 import MobileNavigation from "../components/MobileNavigation";
 import { auth, firestore } from "../firebase/firebase";
+import { rewriteToCDN } from "../utils/cdn";
 
 const Search = () => {
   const [user] = useAuthState(auth);
@@ -167,7 +168,7 @@ const Search = () => {
             .filter(userData => userData.id !== user.uid);
         }
         
-        setSuggestedUsers(fetchedUsers);
+        /* defer setting suggested users until after following state is known */
         
         // Check which users the current user is following (only if user is logged in)
         if (user) {
@@ -183,6 +184,10 @@ const Search = () => {
             }
           }
           setFollowingUsers(followingSet);
+          // Now set suggested users excluding already-followed ones
+          setSuggestedUsers(fetchedUsers.filter(u => !followingSet.has(u.id)));
+        } else {
+          setSuggestedUsers(fetchedUsers);
         }
         
       } catch (error) {
@@ -338,6 +343,18 @@ const Search = () => {
     };
   }, [searchQuery]);
 
+  useEffect(() => {
+    // Hide the browser scrollbar only while on the Search page
+    if (typeof document !== 'undefined') {
+      document.body.classList.add('scrollbar-hide');
+    }
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.body.classList.remove('scrollbar-hide');
+      }
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800">
       <Head>
@@ -366,12 +383,9 @@ const Search = () => {
             <motion.div
               animate={{
                 scale: searchFocused ? 1.02 : 1,
-                boxShadow: searchFocused 
-                  ? "0 8px 32px rgba(0, 0, 0, 0.12)" 
-                  : "0 4px 16px rgba(0, 0, 0, 0.08)"
               }}
               transition={{ duration: 0.2 }}
-              className="relative overflow-hidden rounded-2xl bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200/50 dark:border-neutral-700/50"
+              className={`relative overflow-hidden rounded-2xl bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200/50 dark:border-neutral-700/50 ${searchFocused ? 'shadow-lg ring-1 ring-primary-500/20' : 'shadow-md'}`}
             >
               <input
                 type="text"
@@ -383,15 +397,17 @@ const Search = () => {
                 }}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
-                className="w-full h-14 pl-6 pr-14 bg-transparent text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:outline-none font-medium text-lg"
+                className="w-full h-12 pl-6 pr-14 bg-transparent text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:outline-none font-medium text-base"
               />
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors duration-200"
-              >
-                <MagnifyingGlassIcon className="w-5 h-5" />
-              </motion.button>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="p-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors duration-200 origin-right"
+                >
+                  <MagnifyingGlassIcon className="w-4 h-4" />
+                </motion.button>
+              </div>
             </motion.div>
           </motion.div>
 
@@ -414,7 +430,7 @@ const Search = () => {
                   <button
                     key={key}
                     onClick={() => setActiveTab(key)}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium text-sm transition-all duration-200 ${
                       activeTab === key
                         ? 'bg-white dark:bg-neutral-700 text-primary-600 dark:text-primary-400 shadow-sm'
                         : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
@@ -445,25 +461,25 @@ const Search = () => {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.3, delay: index * 0.05 }}
-                            className="flex items-center justify-between p-4 bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 hover:bg-white/80 dark:hover:bg-neutral-800/80 transition-all duration-200 cursor-pointer"
+                            className="flex items-center justify-between p-3 bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 hover:bg-white/80 dark:hover:bg-neutral-800/80 transition-all duration-200 cursor-pointer"
                             onClick={() => router.push(`/user/${searchUser.id}`)}
                           >
                             <div className="flex items-center space-x-3">
                               <div className="relative">
                                 {searchUser.profileImg ? (
                                   <img
-                                    src={searchUser.profileImg}
+                                    src={rewriteToCDN(searchUser.profileImg)}
                                     alt={searchUser.name}
-                                    className="w-12 h-12 rounded-full object-cover"
+                                    className="w-10 h-10 rounded-full object-cover"
                                   />
                                 ) : (
-                                  <div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full flex items-center justify-center text-white font-semibold">
+                                  <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full flex items-center justify-center text-white font-semibold">
                                     {searchUser.name.charAt(0).toUpperCase()}
                                   </div>
                                 )}
                                 {searchUser.verified && (
-                                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 border-2 border-white dark:border-neutral-800 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-xs">✓</span>
+                                  <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-white dark:border-neutral-800 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-[10px] leading-none">✓</span>
                                   </div>
                                 )}
                               </div>
@@ -471,7 +487,7 @@ const Search = () => {
                                 <p className="font-semibold text-neutral-900 dark:text-neutral-100 truncate">
                                   {searchUser.name}
                                 </p>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
+                                <p className="text-xs text-neutral-600 dark:text-neutral-400 truncate">
                                   @{searchUser.username}
                                 </p>
                               </div>
@@ -500,7 +516,7 @@ const Search = () => {
                           >
                             {post.video ? (
                               <video
-                                src={post.video}
+                                src={rewriteToCDN(post.video)}
                                 className="w-full h-full object-cover"
                                 muted
                               />
@@ -537,18 +553,18 @@ const Search = () => {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.3, delay: index * 0.05 }}
-                            className="flex items-center justify-between p-3 bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-xl border border-neutral-200/50 dark:border-neutral-700/50 hover:bg-white/80 dark:hover:bg-neutral-800/80 transition-all duration-200 cursor-pointer"
+                            className="flex items-center justify-between p-2.5 bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-xl border border-neutral-200/50 dark:border-neutral-700/50 hover:bg-white/80 dark:hover:bg-neutral-800/80 transition-all duration-200 cursor-pointer"
                             onClick={() => setSearchQuery(hashtag.tag)}
                           >
                             <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full flex items-center justify-center">
-                                <HashtagIcon className="w-5 h-5 text-white" />
+                              <div className="w-9 h-9 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full flex items-center justify-center">
+                                <HashtagIcon className="w-4 h-4 text-white" />
                               </div>
                               <div>
                                 <p className="font-semibold text-neutral-900 dark:text-neutral-100">
                                   {hashtag.tag}
                                 </p>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                <p className="text-xs text-neutral-600 dark:text-neutral-400">
                                   {hashtag.count.toLocaleString()} videos
                                 </p>
                               </div>
@@ -579,8 +595,8 @@ const Search = () => {
             </motion.div>
           )}
 
-          {/* Trending Section - Only show when not searching */}
-          {!searchQuery && (
+          {/* Trending Section - temporarily disabled */}
+          {false && !searchQuery && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -604,7 +620,7 @@ const Search = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setSearchQuery(topic)}
-                    className="px-4 py-2 bg-gradient-to-r from-primary-500/10 to-accent-500/10 border border-primary-200 dark:border-primary-700 rounded-full text-primary-600 dark:text-primary-400 font-medium hover:from-primary-500/20 hover:to-accent-500/20 transition-all duration-200"
+                    className="px-3 py-1.5 bg-gradient-to-r from-primary-500/10 to-accent-500/10 border border-primary-200 dark:border-primary-700 rounded-full text-primary-600 dark:text-primary-400 font-medium hover:from-primary-500/20 hover:to-accent-500/20 transition-all duration-200"
                   >
                     {topic}
                   </motion.button>
@@ -626,74 +642,88 @@ const Search = () => {
               
               {suggestedUsers.length > 0 ? (
                 <div className="space-y-3">
-                  {suggestedUsers.map((suggestedUser, index) => (
-                    <motion.div
-                      key={suggestedUser.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.1 }}
-                      className="flex items-center justify-between p-4 bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 hover:bg-white/80 dark:hover:bg-neutral-800/80 transition-all duration-200"
-                    >
-                      <div 
-                        className="flex items-center space-x-3 flex-1 cursor-pointer"
-                        onClick={() => router.push(`/user/${suggestedUser.id}`)}
-                      >
-                        <div className="relative">
-                          {suggestedUser.profileImg ? (
-                            <img
-                              src={suggestedUser.profileImg}
-                              alt={suggestedUser.name}
-                              className="w-12 h-12 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full flex items-center justify-center text-white font-semibold">
-                              {suggestedUser.name.charAt(0).toUpperCase()}
+                  {suggestedUsers.filter(u => !followingUsers.has(u.id)).length > 0 ? (
+                    <div className="space-y-3">
+                      {suggestedUsers.filter(u => !followingUsers.has(u.id)).map((suggestedUser, index) => (
+                        <motion.div
+                          key={suggestedUser.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.1 }}
+                          className="flex items-center justify-between p-3 bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 hover:bg-white/80 dark:hover:bg-neutral-800/80 transition-all duration-200"
+                        >
+                          <div 
+                            className="flex items-center space-x-3 flex-1 cursor-pointer"
+                            onClick={() => router.push(`/user/${suggestedUser.id}`)}
+                          >
+                            <div className="relative">
+                              {suggestedUser.profileImg ? (
+                                <img
+                                  src={rewriteToCDN(suggestedUser.profileImg)}
+                                  alt={suggestedUser.name}
+                                  className="w-10 h-10 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full flex items-center justify-center text-white font-semibold">
+                                  {suggestedUser.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              {suggestedUser.verified && (
+                                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-white dark:border-neutral-800 rounded-full flex items-center justify-center">
+                                  <span className="text-white text-[10px] leading-none">✓</span>
+                                </div>
+                              )}
                             </div>
-                          )}
-                          {suggestedUser.verified && (
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 border-2 border-white dark:border-neutral-800 rounded-full flex items-center justify-center">
-                              <span className="text-white text-xs">✓</span>
+                            
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                                {suggestedUser.name}
+                              </p>
+                              <p className="text-xs text-neutral-600 dark:text-neutral-400 truncate">
+                                @{suggestedUser.username}
+                              </p>
                             </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-neutral-900 dark:text-neutral-100 truncate">
-                            {suggestedUser.name}
-                          </p>
-                          <p className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
-                            @{suggestedUser.username}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={(e) => handleFollow(e, suggestedUser.id)}
-                        disabled={followingLoading.has(suggestedUser.id)}
-                        className={`px-4 py-2 rounded-full font-medium transition-all duration-200 flex-shrink-0 flex items-center space-x-1 ${
-                          followingUsers.has(suggestedUser.id)
-                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            : 'bg-primary-500 text-white hover:bg-primary-600'
-                        } ${followingLoading.has(suggestedUser.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {followingLoading.has(suggestedUser.id) ? (
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        ) : followingUsers.has(suggestedUser.id) ? (
-                          <>
-                            <CheckIcon className="w-4 h-4" />
-                            <span>Following</span>
-                          </>
-                        ) : (
-                          <>
-                            <PlusIcon className="w-4 h-4" />
-                            <span>Follow</span>
-                          </>
-                        )}
-                      </motion.button>
-                    </motion.div>
-                  ))}
+                          </div>
+                          
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => handleFollow(e, suggestedUser.id)}
+                            disabled={followingLoading.has(suggestedUser.id)}
+                            className={`px-3 py-1.5 rounded-full font-medium text-sm transition-all duration-200 flex-shrink-0 flex items-center space-x-1 ${
+                              followingUsers.has(suggestedUser.id)
+                                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                : 'bg-primary-500 text-white hover:bg-primary-600'
+                            } ${followingLoading.has(suggestedUser.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            {followingLoading.has(suggestedUser.id) ? (
+                              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            ) : followingUsers.has(suggestedUser.id) ? (
+                              <>
+                                <CheckIcon className="w-4 h-4" />
+                                <span>Following</span>
+                              </>
+                            ) : (
+                              <>
+                                <PlusIcon className="w-4 h-4" />
+                                <span>Follow</span>
+                              </>
+                            )}
+                          </motion.button>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <UserIcon className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
+                      <p className="text-neutral-600 dark:text-neutral-400">
+                        No suggested users available
+                      </p>
+                      <p className="text-neutral-500 dark:text-neutral-500 text-sm mt-2">
+                        Check back later for new suggestions
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8">

@@ -16,6 +16,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { auth } from "../firebase/firebase";
+import { rewriteToCDN } from "../utils/cdn";
 
 const Header = ({ isShow }) => {
   const router = useRouter();
@@ -74,12 +75,9 @@ const Header = ({ isShow }) => {
             <motion.div
               animate={{
                 scale: searchFocused ? 1.02 : 1,
-                boxShadow: searchFocused 
-                  ? "0 8px 32px rgba(0, 0, 0, 0.12)" 
-                  : "0 4px 16px rgba(0, 0, 0, 0.08)"
               }}
               transition={{ duration: 0.2 }}
-              className="relative overflow-hidden rounded-full bg-neutral-100/80 dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200/50 dark:border-neutral-700/50"
+              className={`relative overflow-hidden rounded-full bg-neutral-100/80 dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200/50 dark:border-neutral-700/50 ${searchFocused ? 'shadow-lg ring-1 ring-primary-500/20' : 'shadow-md'}`}
             >
               <input
                 type="text"
@@ -202,7 +200,7 @@ const Header = ({ isShow }) => {
                   className="flex items-center space-x-2 p-1 rounded-full hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80 transition-colors duration-200"
                 >
                   <img
-                    src={user?.photoURL || "/default-avatar.png"}
+                    src={rewriteToCDN(user?.photoURL) || "/default-avatar.png"}
                     alt={user?.displayName || "User"}
                     className="w-8 h-8 rounded-full object-cover border-2 border-primary-200"
                   />

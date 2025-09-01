@@ -15,6 +15,7 @@ import {
   PauseIcon
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
+import { rewriteToCDN } from "../utils/cdn";
 
 const Comments = ({ comments, sendComment, comment, setComment, loading, ownShow }) => {
   const [user] = useAuthState(auth);
@@ -395,7 +396,7 @@ const Comments = ({ comments, sendComment, comment, setComment, loading, ownShow
                 >
                   {/* User Avatar */}
                   <img
-                    src={commentData.profileImg || commentData.userImage || "/default-avatar.png"}
+                    src={rewriteToCDN(commentData.profileImg || commentData.userImage) || "/default-avatar.png"}
                     alt={commentData.username}
                     className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-600"
                   />
@@ -507,7 +508,7 @@ const Comments = ({ comments, sendComment, comment, setComment, loading, ownShow
                         >
                           <form onSubmit={(e) => handleReplySubmit(e, commentDoc.id, commentData.username)} className="flex items-end space-x-2">
                             <img
-                              src={user?.photoURL || "/default-avatar.png"}
+                              src={rewriteToCDN(user?.photoURL) || "/default-avatar.png"}
                               alt={user?.displayName}
                               className="w-6 h-6 rounded-full object-cover flex-shrink-0"
                             />
@@ -651,7 +652,7 @@ const Comments = ({ comments, sendComment, comment, setComment, loading, ownShow
         >
           <form onSubmit={handleSubmit} className="flex items-end space-x-3">
             <img
-              src={user.photoURL || "/default-avatar.png"}
+              src={rewriteToCDN(user.photoURL) || "/default-avatar.png"}
               alt={user.displayName}
               className="w-10 h-10 rounded-full object-cover border-2 border-white/20 flex-shrink-0"
             />

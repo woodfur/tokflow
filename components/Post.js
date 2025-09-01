@@ -11,20 +11,18 @@ import {
   addDoc,
   serverTimestamp,
   getDocs,
+  getDoc,
 } from "firebase/firestore";
 import { ref, deleteObject } from "firebase/storage";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, firestore as db, storage } from "../firebase/firebase";
 import toast from "react-hot-toast";
+import { rewriteToCDN } from "../utils/cdn";
 
 // Icons
 import { 
   HeartIcon as HeartOutline, 
   HeartIcon,
-  ChatBubbleOvalLeftIcon, 
-  ShareIcon,
-  BookmarkIcon as BookmarkOutline,
-  BookmarkIcon,
   PlayIcon,
   PauseIcon,
   SpeakerWaveIcon,
@@ -34,7 +32,7 @@ import {
   MicrophoneIcon,
   StopIcon
 } from "@heroicons/react/24/outline";
-import { HeartIcon as HeartSolid, BookmarkIcon as BookmarkSolid } from "@heroicons/react/24/solid";
+import { HeartIcon as HeartSolid, BookmarkIcon as BookmarkSolid, ChatBubbleOvalLeftIcon, ShareIcon, PlusIcon } from "@heroicons/react/24/solid";
 
 const Post = ({
   caption,
@@ -57,6 +55,7 @@ const Post = ({
   const [muted, setMuted] = useState(false);
   const [likes, setLikes] = useState([]);
   const [hasLiked, setHasLiked] = useState(false);
+  const [shareCount, setShareCount] = useState(0);
   const [comments, setComments] = useState([]);
   const [showComments, setShowComments] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
@@ -78,6 +77,9 @@ const Post = ({
   const [userCommentLikes, setUserCommentLikes] = useState({});
   const [replyLikes, setReplyLikes] = useState({});
   const [userReplyLikes, setUserReplyLikes] = useState({});
+  // Follow state
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
   
   // Seeking state
   const [isDragging, setIsDragging] = useState(false);
@@ -107,12 +109,66 @@ const Post = ({
   const [replyMediaRecorder, setReplyMediaRecorder] = useState({});
   const replyRecordingTimerRef = useRef({});
 
+  // Check if current user is following the post's author
+  useEffect(() => {
+    if (!user || !userId || user.uid === userId) return;
+    const checkFollowStatus = async () => {
+      try {
+        const followDoc = await getDoc(doc(db, "users", user.uid, "following", userId));
+        setIsFollowing(followDoc.exists());
+      } catch (error) {
+        console.error("Error checking follow status:", error);
+      }
+    };
+    checkFollowStatus();
+  }, [user, userId]);
+
+  // Handle follow/unfollow
+  const handleFollow = async () => {
+    if (!user || !userId || user.uid === userId) return;
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        // Unfollow
+        await deleteDoc(doc(db, "users", user.uid, "following", userId));
+        await deleteDoc(doc(db, "users", userId, "followers", user.uid));
+        setIsFollowing(false);
+      } else {
+        // Follow
+        await setDoc(doc(db, "users", user.uid, "following", userId), {
+          timestamp: new Date(),
+          userId: userId
+        });
+        await setDoc(doc(db, "users", userId, "followers", user.uid), {
+          timestamp: new Date(),
+          userId: user.uid
+        });
+        setIsFollowing(true);
+      }
+    } catch (error) {
+      console.error("Error updating follow status:", error);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
   // Fetch likes
   useEffect(() => {
     if (id) {
       const unsubscribe = onSnapshot(
         collection(db, "posts", id, "likes"),
         (snapshot) => setLikes(snapshot.docs)
+      );
+      return unsubscribe;
+    }
+  }, [id]);
+
+  // Fetch share count
+  useEffect(() => {
+    if (id) {
+      const unsubscribe = onSnapshot(
+        collection(db, "posts", id, "shares"),
+        (snapshot) => setShareCount(snapshot.size)
       );
       return unsubscribe;
     }
@@ -882,6 +938,11 @@ const Post = ({
     return count.toString();
   };
 
+  // Hide counters under threshold for viewers (owners always see)
+  const COUNTER_VISIBILITY_THRESHOLD = 5;
+  const isOwner = user && user.uid === userId;
+  const shouldShowCounter = (count) => isOwner || (typeof count === 'number' && count >= COUNTER_VISIBILITY_THRESHOLD);
+
   // Video seeking functions
   const handleProgressBarClick = (e) => {
     if (!videoRef.current || duration === 0) return;
@@ -1053,7 +1114,7 @@ const Post = ({
       >
         <video
           ref={videoRef}
-          src={video}
+          src={rewriteToCDN(video)}
           className="w-full h-full object-cover cursor-pointer"
           onClick={handleVideoClick}
           onTimeUpdate={handleTimeUpdate}
@@ -1088,7 +1149,28 @@ const Post = ({
 
       {/* Overlaid Post Details - TikTok Style */}
       {/* Right Side Action Buttons - Positioned above navigation bar */}
-      <div className="absolute right-4 bottom-24 flex flex-col items-center space-y-6">
+      <div className="absolute right-4 bottom-16 flex flex-col items-center space-y-4">
+        {/* Mobile: Profile Image with Overlapping Follow Button */}
+        <div className="block sm:hidden flex flex-col items-center mb-4">
+          <div className="relative">
+            <img
+              src={rewriteToCDN(profileImage) || "/default-avatar.png"}
+              alt={username}
+              className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg"
+            />
+            {user && user.uid !== userId && !isFollowing && (
+              <button
+                onClick={handleFollow}
+                disabled={followLoading}
+                className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 w-6 h-6 rounded-full bg-white border border-white shadow-md flex items-center justify-center"
+                aria-label="Follow"
+                title="Follow"
+              >
+                <PlusIcon className="w-4 h-4 text-primary-600" />
+              </button>
+            )}
+          </div>
+        </div>
         {/* Like Button */}
         <motion.button
           whileHover={{ scale: 1.1 }}
@@ -1096,14 +1178,12 @@ const Post = ({
           onClick={likePost}
           className="flex flex-col items-center space-y-1"
         >
-          <div className="p-3 rounded-full bg-black/30 backdrop-blur-sm">
-            {hasLiked ? (
+          {hasLiked ? (
               <HeartSolid className="w-7 h-7 text-red-500" />
             ) : (
-              <HeartOutline className="w-7 h-7 text-white" />
+              <HeartSolid className="w-7 h-7 text-white" />
             )}
-          </div>
-          <span className="text-xs font-medium text-white">
+          <span className={`text-xs font-medium text-white h-4 leading-4 ${shouldShowCounter(likes.length) ? "opacity-100" : "opacity-0"}`}>
             {formatCount(likes.length)}
           </span>
         </motion.button>
@@ -1115,12 +1195,25 @@ const Post = ({
           onClick={() => setShowComments(!showComments)}
           className="flex flex-col items-center space-y-1"
         >
-          <div className="p-3 rounded-full bg-black/30 backdrop-blur-sm">
-            <ChatBubbleOvalLeftIcon className="w-7 h-7 text-white" />
-          </div>
-          <span className="text-xs font-medium text-white">
+          <ChatBubbleOvalLeftIcon className="w-7 h-7 text-white" />
+          <span className={`text-xs font-medium text-white h-4 leading-4 ${shouldShowCounter(getTotalCommentCount()) ? "opacity-100" : "opacity-0"}`}>
             {formatCount(getTotalCommentCount())}
           </span>
+        </motion.button>
+
+        {/* Bookmark Button */}
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setBookmarked(!bookmarked)}
+          className="flex flex-col items-center space-y-1"
+        >
+          {bookmarked ? (
+            <BookmarkSolid className="w-7 h-7 text-green-500" />
+          ) : (
+            <BookmarkSolid className="w-7 h-7 text-white" />
+          )}
+          <span className="h-4 leading-4 text-xs font-medium text-white opacity-0">0</span>
         </motion.button>
 
         {/* Share Button */}
@@ -1130,24 +1223,8 @@ const Post = ({
           onClick={sharePost}
           className="flex flex-col items-center space-y-1"
         >
-          <div className="p-3 rounded-full bg-black/30 backdrop-blur-sm">
-            <ShareIcon className="w-7 h-7 text-white" />
-          </div>
-          <span className="text-xs font-medium text-white">Share</span>
-        </motion.button>
-
-        {/* Bookmark Button */}
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setBookmarked(!bookmarked)}
-          className="p-3 rounded-full bg-black/30 backdrop-blur-sm"
-        >
-          {bookmarked ? (
-            <BookmarkSolid className="w-7 h-7 text-white" />
-          ) : (
-            <BookmarkOutline className="w-7 h-7 text-white" />
-          )}
+          <ShareIcon className="w-7 h-7 text-white" />
+          <span className={`text-xs font-medium text-white h-4 leading-4 ${shouldShowCounter(shareCount) ? "opacity-100" : "opacity-0"}`}>{formatCount(shareCount)}</span>
         </motion.button>
 
         {/* Delete Menu - Only show for post owner */}
@@ -1157,7 +1234,6 @@ const Post = ({
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowDeleteMenu(!showDeleteMenu)}
-              className="p-3 rounded-full bg-black/30 backdrop-blur-sm"
             >
               <EllipsisHorizontalIcon className="w-7 h-7 text-white" />
             </motion.button>
@@ -1184,20 +1260,13 @@ const Post = ({
       </div>
 
       {/* Bottom Left Post Info - Positioned above navigation bar */}
-      <div className="absolute bottom-24 left-4 right-20">
+      <div className="absolute bottom-16 left-4 right-20">
         {/* User Info */}
         <motion.div 
           className="flex items-center space-x-3 mb-3 cursor-pointer"
           whileHover={{ scale: 1.02 }}
           onClick={() => router.push(`/user/${userId}`)}
         >
-          <div className="relative">
-            <img
-              src={profileImage || "/default-avatar.png"}
-              alt={username}
-              className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg"
-            />
-          </div>
           <div>
             <div className="flex items-center space-x-1">
               <h3 className="font-semibold text-white text-lg">
@@ -1361,7 +1430,7 @@ const Post = ({
                         className="flex items-start space-x-3 group"
                       >
                         <img
-                          src={commentData.profileImg || commentData.userImage || "/default-avatar.png"}
+                          src={rewriteToCDN(commentData.profileImg || commentData.userImage) || "/default-avatar.png"}
                           alt={commentData.username}
                           className="w-10 h-10 rounded-full object-cover border-2 border-white/20 flex-shrink-0"
                         />
@@ -1515,7 +1584,7 @@ o looks like we hab                              {showCommentMenu === commentDoc
                                     className="flex items-start space-x-2"
                                   >
                                     <img
-                                      src={replyData.profileImg || "/default-avatar.png"}
+                                      src={rewriteToCDN(replyData.profileImg) || "/default-avatar.png"}
                                       alt={replyData.username}
                                       className="w-8 h-8 rounded-full object-cover border border-white/20 flex-shrink-0"
                                     />
@@ -1676,7 +1745,7 @@ o looks like we hab                              {showCommentMenu === commentDoc
                             >
                               <div className="flex items-start space-x-2">
                                 <img
-                                  src={user?.photoURL || "/default-avatar.png"}
+                                  src={rewriteToCDN(user?.photoURL) || "/default-avatar.png"}
                                   alt={user?.displayName}
                                   className="w-8 h-8 rounded-full object-cover border border-white/20 flex-shrink-0"
                                 />
@@ -1831,7 +1900,7 @@ o looks like we hab                              {showCommentMenu === commentDoc
                 <form onSubmit={addComment} className="flex items-start space-x-4">
                   <div className="relative">
                     <img
-                      src={user.photoURL}
+                      src={rewriteToCDN(user.photoURL)}
                       alt={user.displayName}
                       className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-600/50 shadow-lg"
                     />

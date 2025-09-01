@@ -11,6 +11,7 @@ import {
   EllipsisHorizontalIcon,
   PlayIcon
 } from "@heroicons/react/24/outline";
+import { rewriteToCDN } from "../utils/cdn";
 
 const CustomPosts = ({ post, index }) => {
   const router = useRouter();
@@ -70,12 +71,12 @@ const CustomPosts = ({ post, index }) => {
       viewport={{ once: true }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
       className="relative aspect-square bg-neutral-100 dark:bg-neutral-800 rounded-xl overflow-hidden cursor-pointer group shadow-lg"
-      onClick={() => router.push(`/post/${post.id}`)}
+      onClick={() => router.push(`/detail/${post.id}`)}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
     >
       <video
-        src={post.video}
+        src={rewriteToCDN(post.video)}
         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         muted
         loop

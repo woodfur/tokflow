@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { onSnapshot, query, collection, orderBy, doc, updateDoc, where, getDocs } from "firebase/firestore";
+import { onSnapshot, query, collection, doc, updateDoc, where, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { updateProfile } from "firebase/auth";
 
@@ -52,17 +52,28 @@ const UserProfile = () => {
     if (!user?.uid) return;
 
     const q = query(
-      collection(firestore, "posts"), 
-      where("userId", "==", user.uid),
-      orderBy("timestamp", "desc")
+      collection(firestore, "posts"),
+      where("userId", "==", user.uid)
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const postsData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setPosts(postsData);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const postsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        // Sort client-side by timestamp desc to avoid composite index requirement
+        postsData.sort((a, b) => {
+          const aTs = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+          const bTs = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
+          return bTs - aTs;
+        });
+        setPosts(postsData);
+      },
+      (error) => {
+        console.error("Error fetching user posts:", error);
+      }
+    );
 
     return () => unsubscribe();
   }, [user]);
