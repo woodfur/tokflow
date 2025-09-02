@@ -24,6 +24,31 @@ import {
 import { firestore } from './firebase';
 import { COLLECTIONS } from './schemas';
 
+// ============ ERROR HANDLING UTILITIES ============
+
+// Firebase error handler with graceful fallbacks
+const handleFirebaseError = (error, operation, fallbackValue = null) => {
+  // Log the error for debugging
+  console.error(`Firebase ${operation} error:`, error);
+  
+  // Check for specific Firebase errors
+  if (error.code === 'unavailable' || error.code === 'deadline-exceeded') {
+    console.warn(`Firebase ${operation}: Service temporarily unavailable`);
+  } else if (error.code === 'permission-denied') {
+    console.warn(`Firebase ${operation}: Permission denied`);
+  } else if (error.code === 'not-found') {
+    console.warn(`Firebase ${operation}: Resource not found`);
+  }
+  
+  // Return fallback value for non-critical operations
+  if (fallbackValue !== null) {
+    return fallbackValue;
+  }
+  
+  // Re-throw for critical operations
+  throw error;
+};
+
 // ============ STORE OPERATIONS ============
 
 // Create a new store
@@ -393,10 +418,17 @@ export const getUserCart = async (userId) => {
       currency: 'USD'
     };
   } catch (error) {
-    console.error('Error getting user cart:', error);
-    throw error;
+    return handleFirebaseError(error, 'getUserCart', {
+      id: userId,
+      userId,
+      items: [],
+      totalItems: 0,
+      totalAmount: 0,
+      currency: 'USD'
+    });
   }
 };
+
 
 // Add item to cart
 export const addToCart = async (userId, productId, quantity = 1) => {
@@ -564,6 +596,20 @@ export const removeFromWishlist = async (userId, productId) => {
   } catch (error) {
     console.error('Error removing from wishlist:', error);
     throw error;
+  }
+};
+
+// Get user wishlist
+export const getUserWishlist = async (userId) => {
+  try {
+    const userDoc = await getDoc(doc(firestore, COLLECTIONS.USERS, userId));
+    if (userDoc.exists()) {
+      return userDoc.data().wishlist || [];
+    }
+    // Return empty array if user doesn't exist
+    return [];
+  } catch (error) {
+    return handleFirebaseError(error, 'getUserWishlist', []);
   }
 };
 
