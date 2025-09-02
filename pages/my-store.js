@@ -9,6 +9,7 @@ import {
   deleteProduct,
   updateProduct
 } from '../firebase/storeOperations';
+import { formatLeones } from '../utils/currency';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeftIcon,
@@ -277,7 +278,7 @@ const MyStore = () => {
               <div className="min-w-0 flex-1">
                 <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 truncate">Total Revenue</p>
                 <p className="text-lg sm:text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-                  ${stats.totalRevenue.toFixed(2)}
+                  {formatLeones(stats.totalRevenue)}
                 </p>
               </div>
             </div>
@@ -466,7 +467,7 @@ const MyStore = () => {
                           
                           <div className="flex items-center justify-between mb-3">
                             <span className="text-base sm:text-lg font-bold text-neutral-900 dark:text-neutral-100">
-                              ${product.price?.toFixed(2)}
+                              {formatLeones(product.price || 0)}
                             </span>
                             <span className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
                               product.isInStock

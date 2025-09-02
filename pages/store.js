@@ -35,6 +35,7 @@ import {
   removeFromWishlist,
   getUserStore
 } from "../firebase/storeOperations";
+import { formatLeones, calculateDiscountPercentage } from "../utils/currency";
 
 const Store = () => {
   const [user] = useAuthState(auth);
@@ -451,9 +452,7 @@ const Store = () => {
                   : "gap-6 grid-cols-1"
               }`}>
                 {filteredProducts.map((product, index) => {
-                  const discount = product.originalPrice && product.originalPrice > product.price 
-                    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-                    : null;
+                  const discount = calculateDiscountPercentage(product.originalPrice, product.price);
                   
                   const isLiked = wishlist.has(product.id);
                   const inCart = isInCart(product.id);
@@ -550,11 +549,11 @@ const Store = () => {
                         {/* Price */}
                         <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
                           <span className="text-base sm:text-lg font-bold text-neutral-900 dark:text-neutral-100">
-                            ${product.price?.toFixed(2) || '0.00'}
+                            {formatLeones(product.price || 0)}
                           </span>
                           {product.originalPrice && product.originalPrice > product.price && (
                             <span className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 line-through">
-                              ${product.originalPrice.toFixed(2)}
+                              {formatLeones(product.originalPrice)}
                             </span>
                           )}
                         </div>
