@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2025-01-22
 
+### Fixed
+- **Firebase Timestamp Errors (Recurrence)**: Fixed `serverTimestamp()` compatibility issues in cart operations
+  - **Root Cause**: `serverTimestamp()` was reintroduced in cart operations despite previous fix
+  - **Solution**: Replaced `serverTimestamp()` with `new Date()` in all cart functions:
+    - `addToCart()`: Fixed `addedAt` timestamp in cart items array and `updatedAt` in cart document
+    - `updateCartItemQuantity()`: Fixed `updatedAt` timestamp in cart document
+    - `removeFromCart()`: Fixed `updatedAt` timestamp in cart document
+    - `clearCart()`: Fixed `updatedAt` timestamp in cart document
+  - **Error Message**: "serverTimestamp() is not currently supported inside arrays"
+- **Missing Product Reviews Function (Recurrence)**: Added missing `getProductReviews` and `createProductReview` functions
+  - **Root Cause**: Functions were documented as added in CHANGELOG but not actually implemented
+  - **Solution**: Added both functions to `firebase/storeOperations.js`:
+    - `getProductReviews()`: Fetches product reviews from Firestore subcollections with pagination
+    - `createProductReview()`: Creates new product reviews with proper timestamp handling
+  - **Error Message**: "getProductReviews is not a function"
+- **Cart Add to Cart Error**: Fixed "Failed to load product data" error when adding items to cart from store page
+  - **Root Cause**: `handleAddToCart` function was passing only `productId` instead of full product object
+  - **Solution**: Modified `handleAddToCart` in `pages/store.js` to pass complete product object to `addItemToCart`
+  - **Error Message**: "Failed to load product data" (though items were still added to cart)
+- **Cart Test Button Removal**: Removed "Add Test Item" button and associated function from cart page
+  - **Root Cause**: Test button was left in production code after debugging session
+  - **Solution**: Removed `addTestItem` function and test button from `pages/cart.js`
+  - **Impact**: Cleaner cart interface without debugging elements
+- **Cart Clear Confirmation Modal**: Replaced browser confirm dialog with custom modal for cart clearing
+- **Store Tab Navigation**: Fixed Products tab not working after clicking Stores tab
+  - **Root Cause**: `clearStoreSelection` function was setting `showStores` to `true`, causing Products tab to redirect back to Stores
+  - **Solution**: Created separate `clearStoreData` function that clears store-related data without changing tab state
+  - **Impact**: Products and Stores tabs now work correctly in both directions
+  - **Root Cause**: Cart was being cleared before user confirmation and used intrusive browser dialog
+  - **Solution**: Added modal state management and custom confirmation modal in `pages/cart.js`
+  - **Features**: 
+    - Cart clearing now waits for explicit user confirmation
+    - Custom modal with modern UI design matching app theme
+    - Proper animation and accessibility with close button
+    - Clear action buttons (Cancel/Clear Cart) with appropriate styling
+  - **Impact**: Better user experience with non-intrusive confirmation and prevents accidental cart clearing
+
 ### Changed
 - **Currency System Update**: Changed store currency from US Dollars ($) to Sierra Leonean Leones (Le)
   - Created centralized currency formatting utility (`utils/currency.js`) with functions for Leones formatting
@@ -42,9 +79,18 @@ All notable changes to this project will be documented in this file.
   - Categories filter section is now hidden when viewing Stores tab for cleaner UI
   - Improved user experience with clear visual indicators for active tab
   - Maintains responsive design and visual consistency with existing UI
+- **Store Product Viewing**: "View Store" button now displays products from the selected store instead of navigating to a new page
+  - Added store header with back button, store name, and product count when viewing store-specific products
+  - Seamless transition between stores listing and individual store product catalogs
+  - Enhanced user experience by keeping users within the same interface
+
+### Changed
+- **Store View Navigation**: Modified back button behavior to return to stores page instead of products page
+- **Categories Filter**: Hidden categories filter section when viewing store-specific products for cleaner interface
 
 ### Fixed
 - **Cart Error Handling**: Resolved "Failed to load product data" error when adding items to cart
+- **Add to Cart Error**: Updated error handling in `addToCart()` function to provide clearer error messages when products are not found
   - **Root Cause**: No products existed in the database, causing `getProduct()` to return null
   - **Solution**: Added comprehensive error handling and user feedback
   - Improved error messages in `firebase/storeOperations.js` for better debugging
