@@ -40,27 +40,32 @@ const initialState = {
 const cartReducer = (state, action) => {
   switch (action.type) {
     case CART_ACTIONS.SET_CART:
+      const payload = action.payload || {};
       return {
         ...state,
-        ...action.payload,
+        ...payload,
+        items: Array.isArray(payload.items) ? payload.items : [],
+        totalItems: payload.totalItems || 0,
+        totalAmount: payload.totalAmount || 0,
         loading: false,
         error: null
       };
     
     case CART_ACTIONS.ADD_ITEM:
-      const existingItemIndex = state.items.findIndex(
+      const items = Array.isArray(state.items) ? state.items : [];
+      const existingItemIndex = items.findIndex(
         item => item.productId === action.payload.productId
       );
       
       let updatedItems;
       if (existingItemIndex >= 0) {
-        updatedItems = state.items.map((item, index) =>
+        updatedItems = items.map((item, index) =>
           index === existingItemIndex
             ? { ...item, quantity: item.quantity + action.payload.quantity }
             : item
         );
       } else {
-        updatedItems = [...state.items, action.payload];
+        updatedItems = [...items, action.payload];
       }
       
       const newTotalItems = updatedItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -76,7 +81,8 @@ const cartReducer = (state, action) => {
       };
     
     case CART_ACTIONS.REMOVE_ITEM:
-      const filteredItems = state.items.filter(
+      const currentItems = Array.isArray(state.items) ? state.items : [];
+      const filteredItems = currentItems.filter(
         item => item.productId !== action.payload.productId
       );
       const removeTotalItems = filteredItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -92,7 +98,8 @@ const cartReducer = (state, action) => {
       };
     
     case CART_ACTIONS.UPDATE_QUANTITY:
-      const quantityUpdatedItems = state.items.map(item =>
+      const currentItemsForUpdate = Array.isArray(state.items) ? state.items : [];
+      const quantityUpdatedItems = currentItemsForUpdate.map(item =>
         item.productId === action.payload.productId
           ? { ...item, quantity: action.payload.quantity }
           : item
