@@ -289,9 +289,7 @@ const Store = () => {
                   <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-neutral-900 dark:text-neutral-100 truncate">
                     TokFlo Store
                   </h1>
-                  <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 truncate">
-                    Trending products from creators
-                  </p>
+                 
                 </div>
               </div>
               
