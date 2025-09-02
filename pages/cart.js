@@ -12,7 +12,8 @@ import {
   MinusIcon,
   CreditCardIcon,
   TruckIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { formatLeones, formatShipping } from '../utils/currency';
 
@@ -21,6 +22,7 @@ const Cart = () => {
   const [user, loading, error] = useAuthState(auth);
   const { cart, updateItemQuantity, removeFromCart, clearCart } = useCart();
   const [isLoading, setIsLoading] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -40,11 +42,32 @@ const Cart = () => {
     await removeFromCart(productId);
   };
 
-  const handleClearCart = async () => {
-    if (window.confirm('Are you sure you want to clear your cart?')) {
+  const handleClearCart = () => {
+    console.log('handleClearCart called - showing modal');
+    setShowClearModal(true);
+  };
+
+  const confirmClearCart = async () => {
+    console.log('User confirmed cart clear');
+    console.log('Current cart items:', cart.items);
+    
+    try {
       await clearCart();
+      console.log('clearCart function completed');
+      console.log('Cart items after clear:', cart.items);
+      setShowClearModal(false);
+    } catch (error) {
+      console.error('Error in confirmClearCart:', error);
+      setShowClearModal(false);
     }
   };
+
+  const cancelClearCart = () => {
+    console.log('User cancelled cart clear');
+    setShowClearModal(false);
+  };
+
+
 
   const calculateSubtotal = () => {
     return cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -105,14 +128,16 @@ const Cart = () => {
             </p>
           </div>
           
-          {cart.items.length > 0 && (
-            <button
-              onClick={handleClearCart}
-              className="text-red-500 hover:text-red-700 transition-colors"
-            >
-              Clear Cart
-            </button>
-          )}
+          <div>
+            {cart.items.length > 0 && (
+              <button
+                onClick={handleClearCart}
+                className="text-red-500 hover:text-red-700 transition-colors"
+              >
+                Clear Cart
+              </button>
+            )}
+          </div>
         </div>
 
         {cart.items.length === 0 ? (
@@ -326,6 +351,49 @@ const Cart = () => {
           </div>
         )}
       </div>
+
+      {/* Clear Cart Confirmation Modal */}
+      {showClearModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-white dark:bg-neutral-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                Clear Cart
+              </h3>
+              <button
+                onClick={cancelClearCart}
+                className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition-colors"
+              >
+                <XMarkIcon className="w-5 h-5 text-neutral-500" />
+              </button>
+            </div>
+            
+            <p className="text-neutral-600 dark:text-neutral-300 mb-6">
+              Are you sure you want to clear your cart? This action cannot be undone and all items will be removed.
+            </p>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={cancelClearCart}
+                className="flex-1 px-4 py-2 text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 rounded-xl transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmClearCart}
+                className="flex-1 px-4 py-2 text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors font-medium"
+              >
+                Clear Cart
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

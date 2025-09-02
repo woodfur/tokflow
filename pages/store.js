@@ -16,7 +16,8 @@ import {
   ShoppingCartIcon,
   EyeIcon,
   BuildingStorefrontIcon,
-  MapIcon
+  MapIcon,
+  ArrowLeftIcon
 } from "@heroicons/react/24/outline";
 import { 
   ShoppingBagIcon as ShoppingBagIconSolid,
@@ -37,7 +38,8 @@ import {
   addToWishlist,
   removeFromWishlist,
   getUserStore,
-  getActiveStores
+  getActiveStores,
+  getStoreProducts
 } from "../firebase/storeOperations";
 import { formatLeones, calculateDiscountPercentage } from "../utils/currency";
 
@@ -58,6 +60,8 @@ const Store = () => {
   const [showStores, setShowStores] = useState(false);
   const [stores, setStores] = useState([]);
   const [storesLoading, setStoresLoading] = useState(false);
+  const [selectedStore, setSelectedStore] = useState(null);
+  const [storeProducts, setStoreProducts] = useState([]);
 
   const categories = [
     { id: "trending", label: "Trending", icon: FireIcon, emoji: "🔥" },
@@ -118,6 +122,36 @@ const Store = () => {
     setWishlist(new Set());
   };
 
+  const loadStoreProducts = async (storeId, storeName) => {
+    try {
+      setLoading(true);
+      const products = await getStoreProducts(storeId, 50);
+      setStoreProducts(products);
+      setSelectedStore({ id: storeId, name: storeName });
+      setShowStores(false); // Switch to products view
+      setSearchQuery(''); // Clear search when viewing store products
+    } catch (error) {
+      console.error('Error loading store products:', error);
+      setStoreProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearStoreSelection = () => {
+    setSelectedStore(null);
+    setStoreProducts([]);
+    setSearchQuery('');
+    setShowStores(true); // Return to stores page
+  };
+
+  const clearStoreData = () => {
+    setSelectedStore(null);
+    setStoreProducts([]);
+    setSearchQuery('');
+    // Don't change showStores state - stay on current tab
+  };
+
   // Search effect
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -152,7 +186,7 @@ const Store = () => {
     }
   };
 
-  const handleAddToCart = async (productId) => {
+  const handleAddToCart = async (product) => {
     if (!user) {
       toast.error('Please sign in to add items to cart');
       router.push('/auth/signin');
@@ -160,7 +194,7 @@ const Store = () => {
     }
 
     try {
-      await addItemToCart(productId, 1);
+      await addItemToCart(product, 1);
       // Redirect to cart page instead of showing toast
       router.push('/cart');
     } catch (error) {
@@ -201,7 +235,10 @@ const Store = () => {
 
 
 
-  const filteredProducts = products.filter(product => {
+  // Use store products if a store is selected, otherwise use regular products
+  const currentProducts = selectedStore ? storeProducts : products;
+  
+  const filteredProducts = currentProducts.filter(product => {
     if (!searchQuery.trim()) return true;
     const searchLower = searchQuery.toLowerCase();
     return (
@@ -344,43 +381,70 @@ const Store = () => {
             
             {/* Navigation Tabs */}
             <div className="mb-4">
-              <div className="flex bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-2xl p-1 border border-neutral-200/50 dark:border-neutral-700/50">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setShowStores(false);
-                    setSearchQuery('');
-                  }}
-                  className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
-                    !showStores
-                      ? "bg-primary-500 text-white shadow-lg"
-                      : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
-                  }`}
-                >
-                  <ShoppingBagIcon className="w-5 h-5" />
-                  <span>Products</span>
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setShowStores(true);
-                    setSearchQuery('');
-                    if (stores.length === 0) {
-                      loadStores();
-                    }
-                  }}
-                  className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
-                    showStores
-                      ? "bg-primary-500 text-white shadow-lg"
-                      : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
-                  }`}
-                >
-                  <BuildingStorefrontIcon className="w-5 h-5" />
-                  <span>Stores</span>
-                </motion.button>
-              </div>
+              {selectedStore ? (
+                // Store Products Header
+                <div className="flex items-center justify-between bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-2xl p-4 border border-neutral-200/50 dark:border-neutral-700/50">
+                  <div className="flex items-center space-x-3">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={clearStoreSelection}
+                      className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-colors"
+                      title="Back to all products"
+                    >
+                      <ArrowLeftIcon className="w-5 h-5" />
+                    </motion.button>
+                    <div>
+                      <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">{selectedStore.name}</h3>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">Store Products</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm text-neutral-600 dark:text-neutral-400">
+                    <ShoppingBagIcon className="w-4 h-4" />
+                    <span>{storeProducts.length} products</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-2xl p-1 border border-neutral-200/50 dark:border-neutral-700/50">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setShowStores(false);
+                      setSearchQuery('');
+                      clearStoreData();
+                    }}
+                    className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
+                      !showStores
+                        ? "bg-primary-500 text-white shadow-lg"
+                        : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
+                    }`}
+                  >
+                    <ShoppingBagIcon className="w-5 h-5" />
+                    <span>Products</span>
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setShowStores(true);
+                      setSearchQuery('');
+                      clearStoreSelection();
+                      if (stores.length === 0) {
+                        loadStores();
+                      }
+                    }}
+                    className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
+                      showStores
+                        ? "bg-primary-500 text-white shadow-lg"
+                        : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
+                    }`}
+                  >
+                    <BuildingStorefrontIcon className="w-5 h-5" />
+                    <span>Stores</span>
+                  </motion.button>
+                </div>
+              )}
             </div>
 
             {/* Search Bar - Mobile First */}
@@ -405,7 +469,7 @@ const Store = () => {
           </motion.div>
 
           {/* Category Filter - TikTok Style */}
-          {!showStores && (
+          {!showStores && !selectedStore && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -538,7 +602,6 @@ const Store = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
                       className="group bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden hover:shadow-2xl hover:shadow-primary-500/10 transition-all duration-300 hover:-translate-y-1 cursor-pointer p-6"
-                      onClick={() => router.push(`/store/${store.id}`)}
                     >
                       {/* Store Header */}
                       <div className="flex items-start space-x-4 mb-4">
@@ -592,9 +655,15 @@ const Store = () => {
                       </div>
                       
                       {/* Visit Store Button */}
-                      <button className="w-full bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-medium py-3 px-4 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-primary-500/25 flex items-center justify-center space-x-2 group/btn">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          loadStoreProducts(store.id, store.name);
+                        }}
+                        className="w-full bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-medium py-3 px-4 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-primary-500/25 flex items-center justify-center space-x-2 group/btn"
+                      >
                         <EyeIcon className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
-                        <span>Visit Store</span>
+                        <span>View Store</span>
                       </button>
                     </motion.div>
                   ))}
@@ -739,7 +808,7 @@ const Store = () => {
                           
                           {/* Add to Cart Button */}
                           <button 
-                            onClick={() => handleAddToCart(product.id)}
+                            onClick={() => handleAddToCart(product)}
                             disabled={!product.isInStock}
                             className={`w-full text-xs sm:text-sm font-medium py-2 sm:py-3 px-2 sm:px-4 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center space-x-1 sm:space-x-2 group/btn ${
                               !product.isInStock

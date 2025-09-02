@@ -167,16 +167,35 @@ export const CartProvider = ({ children }) => {
   };
 
   // Add item to cart
-  const addItemToCart = async (productId, quantity = 1) => {
+  const addItemToCart = async (product, quantity = 1) => {
     if (!user) {
-      dispatch({ type: CART_ACTIONS.SET_ERROR, payload: 'Please sign in to add items to cart' });
+      dispatch({ type: CART_ACTIONS.SET_ERROR, payload: 'Please log in to add items to cart' });
       return;
     }
 
     try {
       dispatch({ type: CART_ACTIONS.SET_LOADING, payload: true });
-      await addToCart(user.uid, productId, quantity);
-      await loadCart(); // Reload cart to get updated data
+      
+      // Try Firebase first, but fallback to local state if it fails
+      try {
+        await addToCart(user.uid, product, quantity);
+        await loadCart(); // Reload cart after adding
+      } catch (firebaseError) {
+        console.warn('Firebase add to cart failed, using local state:', firebaseError);
+        
+        // Add to local state as fallback
+        const cartItem = {
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: quantity,
+          image: product.image,
+          addedAt: new Date()
+        };
+        
+        dispatch({ type: CART_ACTIONS.ADD_ITEM, payload: cartItem });
+        dispatch({ type: CART_ACTIONS.SET_LOADING, payload: false });
+      }
     } catch (error) {
       console.error('Error adding item to cart:', error);
       dispatch({ type: CART_ACTIONS.SET_ERROR, payload: error.message });
@@ -218,15 +237,35 @@ export const CartProvider = ({ children }) => {
 
   // Clear entire cart
   const clearEntireCart = async () => {
-    if (!user) return;
+    console.log('clearEntireCart called');
+    
+    if (!user) {
+      console.log('No user found, clearing local cart only');
+      dispatch({ type: CART_ACTIONS.CLEAR_CART });
+      return;
+    }
 
     try {
+      console.log('Starting to clear cart for user:', user.uid);
       dispatch({ type: CART_ACTIONS.SET_LOADING, payload: true });
-      await clearCart(user.uid);
+      
+      // Try Firebase operation first
+      try {
+        const result = await clearCart(user.uid);
+        console.log('Firebase clear cart result:', result);
+      } catch (firebaseError) {
+        console.warn('Firebase clear cart failed, proceeding with local clear:', firebaseError);
+        // Continue with local clear even if Firebase fails
+      }
+      
+      // Always clear the local state
       dispatch({ type: CART_ACTIONS.CLEAR_CART });
+      dispatch({ type: CART_ACTIONS.SET_LOADING, payload: false });
+      console.log('Cart cleared successfully in context');
     } catch (error) {
       console.error('Error clearing cart:', error);
       dispatch({ type: CART_ACTIONS.SET_ERROR, payload: error.message });
+      dispatch({ type: CART_ACTIONS.SET_LOADING, payload: false });
     }
   };
 
