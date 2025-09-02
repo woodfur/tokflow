@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "TokFlo Mobile",
+    "slug": "tokflo-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6366f1"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tokflo.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to camera to record videos and take photos for posts and products.",
+        "NSMicrophoneUsageDescription": "This app needs access to microphone to record videos with audio.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select videos and images for posts and products."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#6366f1"
+      },
+      "package": "com.tokflo.mobile",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow TokFlo to access your microphone to record videos with audio."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow TokFlo to access your camera to record videos and take photos."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow TokFlo to access your photos to select images and videos for posts."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
+    }
+  }
+}

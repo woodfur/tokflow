@@ -260,7 +260,7 @@ export const CartProvider = ({ children }) => {
     addItemToCart,
     removeItemFromCart,
     updateItemQuantity,
-    clearEntireCart,
+    clearCart: clearEntireCart,
     loadCart,
     
     // Utilities
