@@ -25,6 +25,23 @@ All notable changes to this project will be documented in this file.
 - **Sample Products API**: Created `/pages/api/seed-products.js` endpoint for adding sample products to database
   - 5 sample products across different categories (Electronics, Lifestyle, Home & Office, Sports & Fitness)
   - Complete product data including images, specifications, pricing, and SEO metadata
+- **Stores Listing Feature**: Added comprehensive stores directory functionality
+  - New "Stores" button on store page next to view toggle buttons with MapIcon
+  - Comprehensive stores listing view showing all active stores on the platform
+  - Store cards display store name, description, product count, rating, location, and category
+  - Responsive grid layout (1 column mobile, 2 columns tablet, 3 columns desktop)
+  - Loading states and empty states for better user experience
+  - Click-to-visit functionality for individual stores
+  - Integrated with existing `getActiveStores` function from Firebase operations
+- **Navigation System Enhancement**: Implemented intuitive tab-based navigation for Products and Stores
+  - Removed standalone "Stores" button from header area
+  - Added "Products" and "Stores" navigation tabs positioned above the search bar
+  - Dynamic search functionality that adapts to active tab (searches products or stores)
+  - Tab switching automatically clears search query and loads appropriate content
+  - Stores tab includes filtered search capability matching store name, description, or category
+  - Categories filter section is now hidden when viewing Stores tab for cleaner UI
+  - Improved user experience with clear visual indicators for active tab
+  - Maintains responsive design and visual consistency with existing UI
 
 ### Fixed
 - **Cart Error Handling**: Resolved "Failed to load product data" error when adding items to cart
@@ -69,6 +86,11 @@ All notable changes to this project will be documented in this file.
   - **Solution**: Implemented responsive flexbox layout with proper spacing and text truncation
   - Added graceful image error handling with visual fallback indicators
   - Enhanced mobile experience with centered controls and proper spacing
+- **Firebase Composite Index Error**: Fixed stores query requiring composite index
+  - **Root Cause**: `getActiveStores` query used both `where('isActive', '==', true)` and `orderBy('createdAt', 'desc')` requiring a composite index
+  - **Solution**: Removed `orderBy` from Firestore query and implemented client-side sorting by `createdAt` in descending order
+  - Eliminated Firebase index requirement while maintaining chronological store ordering
+  - Fixed "no stores" display issue when stores exist in Firebase
 
 ### Changed
 - **Store Page Display**: Removed "Coming Soon" overlay from `/pages/store.js`

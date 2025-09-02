@@ -15,12 +15,15 @@ import {
   PlusIcon,
   ShoppingCartIcon,
   EyeIcon,
-  BuildingStorefrontIcon
+  BuildingStorefrontIcon,
+  MapIcon
 } from "@heroicons/react/24/outline";
 import { 
   ShoppingBagIcon as ShoppingBagIconSolid,
   StarIcon as StarIconSolid,
-  HeartIcon as HeartIconSolid
+  HeartIcon as HeartIconSolid,
+  BuildingStorefrontIcon as BuildingStorefrontIconSolid,
+  EyeIcon as EyeIconSolid
 } from "@heroicons/react/24/solid";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/router";
@@ -33,7 +36,8 @@ import {
   searchProducts,
   addToWishlist,
   removeFromWishlist,
-  getUserStore
+  getUserStore,
+  getActiveStores
 } from "../firebase/storeOperations";
 import { formatLeones, calculateDiscountPercentage } from "../utils/currency";
 
@@ -51,6 +55,9 @@ const Store = () => {
   const [loading, setLoading] = useState(true);
   const [userStore, setUserStore] = useState(null);
   const [wishlist, setWishlist] = useState(new Set());
+  const [showStores, setShowStores] = useState(false);
+  const [stores, setStores] = useState([]);
+  const [storesLoading, setStoresLoading] = useState(false);
 
   const categories = [
     { id: "trending", label: "Trending", icon: FireIcon, emoji: "🔥" },
@@ -172,6 +179,26 @@ const Store = () => {
     }
   };
 
+  const loadStores = async () => {
+    try {
+      setStoresLoading(true);
+      const fetchedStores = await getActiveStores(50); // Get up to 50 stores
+      setStores(fetchedStores);
+    } catch (error) {
+      console.error('Error loading stores:', error);
+      toast.error('Failed to load stores');
+    } finally {
+      setStoresLoading(false);
+    }
+  };
+
+  const toggleStoresView = () => {
+    setShowStores(!showStores);
+    if (!showStores && stores.length === 0) {
+      loadStores();
+    }
+  };
+
 
 
   const filteredProducts = products.filter(product => {
@@ -181,6 +208,16 @@ const Store = () => {
       product.name.toLowerCase().includes(searchLower) ||
       product.description?.toLowerCase().includes(searchLower) ||
       (product.tags && product.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+    );
+  });
+
+  const filteredStores = stores.filter(store => {
+    if (!searchQuery.trim()) return true;
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      store.name.toLowerCase().includes(searchLower) ||
+      store.description?.toLowerCase().includes(searchLower) ||
+      store.category?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -275,6 +312,8 @@ const Store = () => {
                   </motion.button>
                 )}
                 
+
+                
                 {/* View Mode Toggle - Desktop Only */}
                 <div className="hidden lg:flex items-center space-x-1 bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-xl p-1 border border-neutral-200/50 dark:border-neutral-700/50">
                   <button
@@ -303,6 +342,47 @@ const Store = () => {
               </div>
             </div>
             
+            {/* Navigation Tabs */}
+            <div className="mb-4">
+              <div className="flex bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-2xl p-1 border border-neutral-200/50 dark:border-neutral-700/50">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setShowStores(false);
+                    setSearchQuery('');
+                  }}
+                  className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
+                    !showStores
+                      ? "bg-primary-500 text-white shadow-lg"
+                      : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
+                  }`}
+                >
+                  <ShoppingBagIcon className="w-5 h-5" />
+                  <span>Products</span>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setShowStores(true);
+                    setSearchQuery('');
+                    if (stores.length === 0) {
+                      loadStores();
+                    }
+                  }}
+                  className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
+                    showStores
+                      ? "bg-primary-500 text-white shadow-lg"
+                      : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
+                  }`}
+                >
+                  <BuildingStorefrontIcon className="w-5 h-5" />
+                  <span>Stores</span>
+                </motion.button>
+              </div>
+            </div>
+
             {/* Search Bar - Mobile First */}
             <div className="relative mb-4">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -310,7 +390,7 @@ const Store = () => {
               </div>
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder={showStores ? "Search stores..." : "Search products..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-12 py-3 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200/50 dark:border-neutral-700/50 rounded-2xl text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200"
@@ -325,12 +405,13 @@ const Store = () => {
           </motion.div>
 
           {/* Category Filter - TikTok Style */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="mb-6"
-          >
+          {!showStores && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="mb-6"
+            >
             <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-hide">
               {categories.map((category, index) => {
                 const IconComponent = category.icon;
@@ -385,6 +466,7 @@ const Store = () => {
               })}
             </div>
           </motion.div>
+          )}
 
           {/* Products Grid - Enhanced Mobile Design */}
           <motion.div
@@ -395,7 +477,7 @@ const Store = () => {
             {/* Results count */}
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                {filteredProducts.length} products found
+                {showStores ? `${filteredStores.length} stores found` : `${filteredProducts.length} products found`}
               </p>
               {/* Mobile view toggle */}
               <div className="flex sm:hidden items-center space-x-2 bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm rounded-xl p-1 border border-neutral-200/50 dark:border-neutral-700/50">
@@ -422,169 +504,267 @@ const Store = () => {
               </div>
             </div>
             
-            {/* Loading State */}
-            {loading ? (
-              <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {[...Array(8)].map((_, index) => (
-                  <div key={index} className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 p-6 animate-pulse">
-                    <div className="aspect-square bg-neutral-200 dark:bg-neutral-700 rounded-2xl mb-4"></div>
-                    <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded mb-2"></div>
-                    <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded mb-3 w-3/4"></div>
-                    <div className="h-6 bg-neutral-200 dark:bg-neutral-700 rounded mb-4 w-1/2"></div>
-                    <div className="h-10 bg-neutral-200 dark:bg-neutral-700 rounded-2xl"></div>
-                  </div>
-                ))}
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">🛍️</div>
-                <h3 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-                  No products found
-                </h3>
-                <p className="text-neutral-500 dark:text-neutral-400">
-                  {products.length === 0 ? 'No products available yet. Be the first to list a product!' : 'Try adjusting your search or category filters'}
-                </p>
-              </div>
-            ) : (
-              <div className={`grid ${
-                viewMode === "grid" 
-                  ? "gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
-                  : "gap-6 grid-cols-1"
-              }`}>
-                {filteredProducts.map((product, index) => {
-                  const discount = calculateDiscountPercentage(product.originalPrice, product.price);
-                  
-                  const isLiked = wishlist.has(product.id);
-                  const inCart = isInCart(product.id);
-                  const cartQuantity = getItemQuantity(product.id);
-                  
-                  return (
+            {/* Content - Stores or Products */}
+            {showStores ? (
+              /* Stores View */
+              storesLoading ? (
+                <div className="grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {[...Array(6)].map((_, index) => (
+                    <div key={index} className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 p-6 animate-pulse">
+                      <div className="w-16 h-16 bg-neutral-200 dark:bg-neutral-700 rounded-2xl mb-4"></div>
+                      <div className="h-5 bg-neutral-200 dark:bg-neutral-700 rounded mb-2"></div>
+                      <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded mb-3 w-3/4"></div>
+                      <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded mb-4 w-1/2"></div>
+                      <div className="h-10 bg-neutral-200 dark:bg-neutral-700 rounded-2xl"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : filteredStores.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">🏪</div>
+                  <h3 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+                    No stores found
+                  </h3>
+                  <p className="text-neutral-500 dark:text-neutral-400">
+                    No active stores available at the moment. Check back later!
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {filteredStores.map((store, index) => (
                     <motion.div
-                      key={product.id}
+                      key={store.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className={`group bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden hover:shadow-2xl hover:shadow-primary-500/10 transition-all duration-300 hover:-translate-y-1 cursor-pointer ${
-                        viewMode === "list" ? "flex items-center space-x-6 p-6" : "p-3 sm:p-6"
-                      }`}
-                      onClick={() => router.push(`/product/${product.id}`)}
+                      className="group bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden hover:shadow-2xl hover:shadow-primary-500/10 transition-all duration-300 hover:-translate-y-1 cursor-pointer p-6"
+                      onClick={() => router.push(`/store/${store.id}`)}
                     >
-                      {/* Product Image */}
-                      <div className={`relative overflow-hidden rounded-xl sm:rounded-2xl ${
-                        viewMode === "list" ? "w-32 h-32 flex-shrink-0" : "aspect-square mb-2 sm:mb-4"
-                      }`}>
-                        <img
-                          src={product.thumbnail || product.images?.[0] || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=400&fit=crop'}
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=400&fit=crop';
-                          }}
-                        />
-                        
-                        {/* Discount Badge */}
-                        {discount && (
-                          <div className="absolute top-2 sm:top-3 left-2 sm:left-3 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
-                            {discount}% OFF
-                          </div>
-                        )}
-                        
-                        {/* Stock Status */}
-                        {!product.isInStock && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <span className="text-white font-semibold">Out of Stock</span>
-                          </div>
-                        )}
-                        
-                        {/* Wishlist Button */}
-                        <button
-                          onClick={() => toggleLike(product.id)}
-                          className="absolute top-2 sm:top-3 right-2 sm:right-3 p-1.5 sm:p-2 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-full hover:bg-white dark:hover:bg-neutral-800 transition-all duration-200 hover:scale-110"
-                        >
-                          {isLiked ? (
-                            <HeartIconSolid className="w-5 h-5 text-red-500" />
-                          ) : (
-                            <HeartIcon className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
-                          )}
-                        </button>
+                      {/* Store Header */}
+                      <div className="flex items-start space-x-4 mb-4">
+                        <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center flex-shrink-0">
+                          <BuildingStorefrontIcon className="w-8 h-8 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-1 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate">
+                            {store.name}
+                          </h3>
+                          <p className="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-2">
+                            {store.description || 'A great store with amazing products'}
+                          </p>
+                        </div>
                       </div>
                       
-                      {/* Product Info */}
-                      <div className={viewMode === "list" ? "flex-1" : ""}>
-                        <h3 className="text-sm sm:text-base font-semibold text-neutral-900 dark:text-neutral-100 mb-1 sm:mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-2">
-                          {product.name}
-                        </h3>
-                        
-                        {/* Description for list view */}
-                        {viewMode === "list" && product.description && (
-                          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2 line-clamp-2">
-                            {product.description}
-                          </p>
-                        )}
-                        
-                        {/* Rating */}
-                        <div className="flex items-center space-x-1 sm:space-x-2 mb-2 sm:mb-3">
-                          <div className="flex items-center space-x-0.5 sm:space-x-1">
-                            {[...Array(5)].map((_, i) => (
-                              <StarIconSolid
-                                key={i}
-                                className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                                  i < Math.floor(product.rating || 0)
-                                    ? "text-yellow-400"
-                                    : "text-neutral-300 dark:text-neutral-600"
-                                }`}
-                              />
-                            ))}
+                      {/* Store Stats */}
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="text-center p-3 bg-neutral-100/50 dark:bg-neutral-700/50 rounded-xl">
+                          <div className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                            {store.totalProducts || 0}
                           </div>
-                          <span className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
-                            ({product.totalReviews || 0})
-                          </span>
-                          {product.stock <= 5 && product.stock > 0 && (
-                            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium hidden sm:inline">
-                              Only {product.stock} left
-                            </span>
-                          )}
+                          <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                            Products
+                          </div>
                         </div>
-                        
-                        {/* Price */}
-                        <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
-                          <span className="text-base sm:text-lg font-bold text-neutral-900 dark:text-neutral-100">
-                            {formatLeones(product.price || 0)}
-                          </span>
-                          {product.originalPrice && product.originalPrice > product.price && (
-                            <span className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 line-through">
-                              {formatLeones(product.originalPrice)}
-                            </span>
-                          )}
+                        <div className="text-center p-3 bg-neutral-100/50 dark:bg-neutral-700/50 rounded-xl">
+                          <div className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                            {store.rating ? store.rating.toFixed(1) : '5.0'}
+                          </div>
+                          <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                            Rating
+                          </div>
                         </div>
-                        
-                        {/* Add to Cart Button */}
-                        <button 
-                          onClick={() => handleAddToCart(product.id)}
-                          disabled={!product.isInStock}
-                          className={`w-full text-xs sm:text-sm font-medium py-2 sm:py-3 px-2 sm:px-4 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center space-x-1 sm:space-x-2 group/btn ${
-                            !product.isInStock
-                              ? 'bg-neutral-300 dark:bg-neutral-600 text-neutral-500 dark:text-neutral-400 cursor-not-allowed'
-                              : inCart
-                              ? 'bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/25'
-                              : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white hover:shadow-lg hover:shadow-primary-500/25'
-                          }`}
-                        >
-                          <ShoppingBagIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover/btn:scale-110 transition-transform" />
-                          <span>
-                            {!product.isInStock 
-                              ? 'Out of Stock'
-                              : inCart 
-                              ? `In Cart (${cartQuantity})`
-                              : 'Add to Cart'
-                            }
-                          </span>
-                        </button>
                       </div>
+                      
+                      {/* Store Info */}
+                      <div className="space-y-2 mb-4">
+                        {store.location && (
+                          <div className="flex items-center space-x-2 text-sm text-neutral-600 dark:text-neutral-400">
+                            <MapIcon className="w-4 h-4" />
+                            <span className="truncate">{store.location}</span>
+                          </div>
+                        )}
+                        {store.category && (
+                          <div className="flex items-center space-x-2 text-sm text-neutral-600 dark:text-neutral-400">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span className="truncate">{store.category}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Visit Store Button */}
+                      <button className="w-full bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-medium py-3 px-4 rounded-2xl transition-all duration-200 hover:shadow-lg hover:shadow-primary-500/25 flex items-center justify-center space-x-2 group/btn">
+                        <EyeIcon className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                        <span>Visit Store</span>
+                      </button>
                     </motion.div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              /* Products View */
+              loading ? (
+                <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {[...Array(8)].map((_, index) => (
+                    <div key={index} className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 p-6 animate-pulse">
+                      <div className="aspect-square bg-neutral-200 dark:bg-neutral-700 rounded-2xl mb-4"></div>
+                      <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded mb-2"></div>
+                      <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded mb-3 w-3/4"></div>
+                      <div className="h-6 bg-neutral-200 dark:bg-neutral-700 rounded mb-4 w-1/2"></div>
+                      <div className="h-10 bg-neutral-200 dark:bg-neutral-700 rounded-2xl"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">🛍️</div>
+                  <h3 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+                    No products found
+                  </h3>
+                  <p className="text-neutral-500 dark:text-neutral-400">
+                    {products.length === 0 ? 'No products available yet. Be the first to list a product!' : 'Try adjusting your search or category filters'}
+                  </p>
+                </div>
+              ) : (
+                <div className={`grid ${
+                  viewMode === "grid" 
+                    ? "gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
+                    : "gap-6 grid-cols-1"
+                }`}>
+                  {filteredProducts.map((product, index) => {
+                    const discount = calculateDiscountPercentage(product.originalPrice, product.price);
+                    
+                    const isLiked = wishlist.has(product.id);
+                    const inCart = isInCart(product.id);
+                    const cartQuantity = getItemQuantity(product.id);
+                    
+                    return (
+                      <motion.div
+                        key={product.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className={`group bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden hover:shadow-2xl hover:shadow-primary-500/10 transition-all duration-300 hover:-translate-y-1 cursor-pointer ${
+                          viewMode === "list" ? "flex items-center space-x-6 p-6" : "p-3 sm:p-6"
+                        }`}
+                        onClick={() => router.push(`/product/${product.id}`)}
+                      >
+                        {/* Product Image */}
+                        <div className={`relative overflow-hidden rounded-xl sm:rounded-2xl ${
+                          viewMode === "list" ? "w-32 h-32 flex-shrink-0" : "aspect-square mb-2 sm:mb-4"
+                        }`}>
+                          <img
+                            src={product.thumbnail || product.images?.[0] || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=400&fit=crop'}
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            onError={(e) => {
+                              e.target.src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=400&fit=crop';
+                            }}
+                          />
+                          
+                          {/* Discount Badge */}
+                          {discount && (
+                            <div className="absolute top-2 sm:top-3 left-2 sm:left-3 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
+                              {discount}% OFF
+                            </div>
+                          )}
+                          
+                          {/* Stock Status */}
+                          {!product.isInStock && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <span className="text-white font-semibold">Out of Stock</span>
+                            </div>
+                          )}
+                          
+                          {/* Wishlist Button */}
+                          <button
+                            onClick={() => toggleLike(product.id)}
+                            className="absolute top-2 sm:top-3 right-2 sm:right-3 p-1.5 sm:p-2 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-full hover:bg-white dark:hover:bg-neutral-800 transition-all duration-200 hover:scale-110"
+                          >
+                            {isLiked ? (
+                              <HeartIconSolid className="w-5 h-5 text-red-500" />
+                            ) : (
+                              <HeartIcon className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
+                            )}
+                          </button>
+                        </div>
+                        
+                        {/* Product Info */}
+                        <div className={viewMode === "list" ? "flex-1" : ""}>
+                          <h3 className="text-sm sm:text-base font-semibold text-neutral-900 dark:text-neutral-100 mb-1 sm:mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-2">
+                            {product.name}
+                          </h3>
+                          
+                          {/* Description for list view */}
+                          {viewMode === "list" && product.description && (
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2 line-clamp-2">
+                              {product.description}
+                            </p>
+                          )}
+                          
+                          {/* Rating */}
+                          <div className="flex items-center space-x-1 sm:space-x-2 mb-2 sm:mb-3">
+                            <div className="flex items-center space-x-0.5 sm:space-x-1">
+                              {[...Array(5)].map((_, i) => (
+                                <StarIconSolid
+                                  key={i}
+                                  className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                                    i < Math.floor(product.rating || 0)
+                                      ? "text-yellow-400"
+                                      : "text-neutral-300 dark:text-neutral-600"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
+                              ({product.totalReviews || 0})
+                            </span>
+                            {product.stock <= 5 && product.stock > 0 && (
+                              <span className="text-xs text-orange-600 dark:text-orange-400 font-medium hidden sm:inline">
+                                Only {product.stock} left
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Price */}
+                          <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
+                            <span className="text-base sm:text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                              {formatLeones(product.price || 0)}
+                            </span>
+                            {product.originalPrice && product.originalPrice > product.price && (
+                              <span className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 line-through">
+                                {formatLeones(product.originalPrice)}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Add to Cart Button */}
+                          <button 
+                            onClick={() => handleAddToCart(product.id)}
+                            disabled={!product.isInStock}
+                            className={`w-full text-xs sm:text-sm font-medium py-2 sm:py-3 px-2 sm:px-4 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center space-x-1 sm:space-x-2 group/btn ${
+                              !product.isInStock
+                                ? 'bg-neutral-300 dark:bg-neutral-600 text-neutral-500 dark:text-neutral-400 cursor-not-allowed'
+                                : inCart
+                                ? 'bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/25'
+                                : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white hover:shadow-lg hover:shadow-primary-500/25'
+                            }`}
+                          >
+                            <ShoppingBagIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover/btn:scale-110 transition-transform" />
+                            <span>
+                              {!product.isInStock 
+                                ? 'Out of Stock'
+                                : inCart 
+                                ? `In Cart (${cartQuantity})`
+                                : 'Add to Cart'
+                              }
+                            </span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )
             )}
           </motion.div>
         </div>
