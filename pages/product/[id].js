@@ -120,7 +120,8 @@ const ProductDetail = () => {
         storeName: store?.name || 'Unknown Store'
       }, quantity);
       
-      alert('Product added to cart!');
+      // Redirect to cart page instead of showing alert
+      router.push('/cart');
     } catch (error) {
       console.error('Error adding to cart:', error);
       alert('Failed to add product to cart.');

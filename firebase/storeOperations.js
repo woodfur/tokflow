@@ -41,8 +41,8 @@ export const createStore = async (storeData, userId) => {
       totalReviews: 0,
       totalProducts: 0,
       totalSales: 0,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      createdAt: new Date(),
+    updatedAt: new Date()
     };
     
     // Remove file objects that can't be stored in Firestore
@@ -58,7 +58,7 @@ export const createStore = async (storeData, userId) => {
     await updateDoc(doc(firestore, COLLECTIONS.USERS, userId), {
       hasStore: true,
       storeId: storeRef.id,
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     });
     
     console.log('User profile updated successfully');
@@ -111,7 +111,7 @@ export const updateStore = async (storeId, updateData) => {
   try {
     await updateDoc(doc(firestore, COLLECTIONS.STORES, storeId), {
       ...updateData,
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     });
   } catch (error) {
     console.error('Error updating store:', error);
@@ -163,14 +163,14 @@ export const createProduct = async (productData, storeId, userId) => {
       views: 0,
       likes: 0,
       isInStock: productData.stock > 0,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
 
     // Update store's total products count
     await updateDoc(doc(firestore, COLLECTIONS.STORES, storeId), {
       totalProducts: increment(1),
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     });
 
     console.log('Product created successfully with ID:', productRef.id);
@@ -187,14 +187,22 @@ export const createProduct = async (productData, storeId, userId) => {
 // Get product by ID
 export const getProduct = async (productId) => {
   try {
+    if (!productId) {
+      console.error('getProduct called with invalid productId:', productId);
+      return null;
+    }
+    
     const productDoc = await getDoc(doc(firestore, COLLECTIONS.PRODUCTS, productId));
     if (productDoc.exists()) {
       return { id: productDoc.id, ...productDoc.data() };
     }
+    
+    console.warn('Product not found in database:', productId);
     return null;
   } catch (error) {
     console.error('Error getting product:', error);
-    throw error;
+    // Re-throw with more context
+    throw new Error(`Failed to fetch product ${productId}: ${error.message}`);
   }
 };
 
@@ -333,7 +341,7 @@ export const updateProduct = async (productId, updateData) => {
   try {
     await updateDoc(doc(firestore, COLLECTIONS.PRODUCTS, productId), {
       ...updateData,
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     });
   } catch (error) {
     console.error('Error updating product:', error);
@@ -347,7 +355,7 @@ export const updateProductStock = async (productId, newStock) => {
     await updateDoc(doc(firestore, COLLECTIONS.PRODUCTS, productId), {
       stock: newStock,
       isInStock: newStock > 0,
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     });
   } catch (error) {
     console.error('Error updating product stock:', error);
@@ -395,8 +403,14 @@ export const getUserCart = async (userId) => {
 export const addToCart = async (userId, productId, quantity = 1) => {
   try {
     const product = await getProduct(productId);
-    if (!product || !product.isInStock || product.stock < quantity) {
-      throw new Error('Product not available or insufficient stock');
+    if (!product) {
+      throw new Error('Product not found. Please refresh the page and try again.');
+    }
+    if (!product.isInStock) {
+      throw new Error('Product is currently out of stock');
+    }
+    if (product.stock < quantity) {
+      throw new Error(`Insufficient stock. Only ${product.stock} items available`);
     }
 
     const cart = await getUserCart(userId);
@@ -416,7 +430,7 @@ export const addToCart = async (userId, productId, quantity = 1) => {
         price: product.price,
         quantity,
         thumbnail: product.thumbnail,
-        addedAt: serverTimestamp()
+        addedAt: new Date()
       };
       updatedItems = [...cart.items, newItem];
     }
@@ -430,7 +444,7 @@ export const addToCart = async (userId, productId, quantity = 1) => {
       totalItems,
       totalAmount,
       currency: 'USD',
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     });
 
     return { success: true };
@@ -455,7 +469,7 @@ export const removeFromCart = async (userId, productId) => {
       totalItems,
       totalAmount,
       currency: 'USD',
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     });
 
     return { success: true };
@@ -488,7 +502,7 @@ export const updateCartItemQuantity = async (userId, productId, newQuantity) => 
       totalItems,
       totalAmount,
       currency: 'USD',
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     });
 
     return { success: true };
@@ -507,7 +521,7 @@ export const clearCart = async (userId) => {
       totalItems: 0,
       totalAmount: 0,
       currency: 'USD',
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     });
     return { success: true };
   } catch (error) {
@@ -523,7 +537,7 @@ export const addToWishlist = async (userId, productId) => {
   try {
     await updateDoc(doc(firestore, COLLECTIONS.USERS, userId), {
       wishlist: arrayUnion(productId),
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     });
     return { success: true };
   } catch (error) {
@@ -537,11 +551,27 @@ export const removeFromWishlist = async (userId, productId) => {
   try {
     await updateDoc(doc(firestore, COLLECTIONS.USERS, userId), {
       wishlist: arrayRemove(productId),
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     });
     return { success: true };
   } catch (error) {
     console.error('Error removing from wishlist:', error);
+    throw error;
+  }
+};
+
+// Get user wishlist
+export const getUserWishlist = async (userId) => {
+  try {
+    const userDoc = await getDoc(doc(firestore, COLLECTIONS.USERS, userId));
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      return userData.wishlist || [];
+    }
+    // Return empty wishlist if user doesn't exist
+    return [];
+  } catch (error) {
+    console.error('Error getting user wishlist:', error);
     throw error;
   }
 };
@@ -558,8 +588,8 @@ export const createOrder = async (orderData) => {
       orderNumber,
       status: 'pending',
       paymentStatus: 'pending',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
 
     return orderRef.id;
@@ -608,19 +638,69 @@ export const updateOrderStatus = async (orderId, status) => {
   try {
     const updateData = {
       status,
-      updatedAt: serverTimestamp()
+      updatedAt: new Date()
     };
 
     if (status === 'shipped') {
-      updateData.shippedAt = serverTimestamp();
+      updateData.shippedAt = new Date();
     } else if (status === 'delivered') {
-      updateData.deliveredAt = serverTimestamp();
+      updateData.deliveredAt = new Date();
     }
 
     await updateDoc(doc(firestore, COLLECTIONS.ORDERS, orderId), updateData);
     return { success: true };
   } catch (error) {
     console.error('Error updating order status:', error);
+    throw error;
+  }
+};
+
+// Get product reviews
+export const getProductReviews = async (productId, limitCount = 20) => {
+  try {
+    const reviewsRef = collection(firestore, COLLECTIONS.PRODUCTS, productId, 'reviews');
+    const q = query(
+      reviewsRef,
+      orderBy('createdAt', 'desc'),
+      limit(limitCount)
+    );
+    
+    const snapshot = await getDocs(q);
+    const reviews = [];
+    
+    snapshot.forEach((doc) => {
+      reviews.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    return reviews;
+  } catch (error) {
+    console.error('Error getting product reviews:', error);
+    return [];
+  }
+};
+
+// Create product review
+export const createProductReview = async (productId, reviewData) => {
+  try {
+    const reviewsRef = collection(firestore, COLLECTIONS.PRODUCTS, productId, 'reviews');
+    const docRef = await addDoc(reviewsRef, {
+      ...reviewData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    
+    // Update product's total reviews count
+    const productRef = doc(firestore, COLLECTIONS.PRODUCTS, productId);
+    await updateDoc(productRef, {
+      totalReviews: increment(1)
+    });
+    
+    return { success: true, reviewId: docRef.id };
+  } catch (error) {
+    console.error('Error creating product review:', error);
     throw error;
   }
 };

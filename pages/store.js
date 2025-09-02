@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
 import { 
   ShoppingBagIcon, 
   StarIcon, 
@@ -145,14 +146,18 @@ const Store = () => {
 
   const handleAddToCart = async (productId) => {
     if (!user) {
+      toast.error('Please sign in to add items to cart');
       router.push('/auth/signin');
       return;
     }
 
     try {
       await addItemToCart(productId, 1);
+      // Redirect to cart page instead of showing toast
+      router.push('/cart');
     } catch (error) {
       console.error('Error adding to cart:', error);
+      toast.error(error.message || 'Failed to add item to cart');
     }
   };
 

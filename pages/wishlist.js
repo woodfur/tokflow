@@ -57,6 +57,8 @@ const Wishlist = () => {
   const handleAddToCart = async (product) => {
     try {
       await addToCart(product.id, 1);
+      // Redirect to cart page after adding item
+      router.push('/cart');
     } catch (error) {
       console.error('Error adding to cart:', error);
     }

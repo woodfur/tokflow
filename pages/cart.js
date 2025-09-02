@@ -18,7 +18,7 @@ import {
 const Cart = () => {
   const router = useRouter();
   const [user, loading, error] = useAuthState(auth);
-  const { cart, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { cart, updateItemQuantity, removeFromCart, clearCart } = useCart();
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ const Cart = () => {
     if (newQuantity < 1) {
       await removeFromCart(productId);
     } else {
-      await updateQuantity(productId, newQuantity);
+      await updateItemQuantity(productId, newQuantity);
     }
   };
 
@@ -150,24 +150,33 @@ const Cart = () => {
                   transition={{ delay: index * 0.1 }}
                   className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 p-6"
                 >
-                  <div className="flex items-center space-x-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
                     {/* Product Image */}
                     <div 
-                      className="w-24 h-24 bg-neutral-100 dark:bg-neutral-700 rounded-2xl overflow-hidden flex-shrink-0 cursor-pointer"
+                      className="w-24 h-24 bg-neutral-100 dark:bg-neutral-700 rounded-2xl overflow-hidden flex-shrink-0 cursor-pointer mx-auto sm:mx-0"
                       onClick={() => router.push(`/product/${item.productId}`)}
                     >
-                      <img
-                        src={item.image || '/placeholder-product.jpg'}
-                        alt={item.name}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                        onError={(e) => {
-                          e.target.src = '/placeholder-product.jpg';
-                        }}
-                      />
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className="w-full h-full bg-neutral-200 dark:bg-neutral-600 flex items-center justify-center"
+                        style={{ display: item.image ? 'none' : 'flex' }}
+                      >
+                        <ShoppingCartIcon className="w-8 h-8 text-neutral-400" />
+                      </div>
                     </div>
                     
                     {/* Product Info */}
-                    <div className="flex-1">
+                    <div className="flex-1 text-center sm:text-left">
                       <h3 
                         className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-1 cursor-pointer hover:text-primary-600 transition-colors"
                         onClick={() => router.push(`/product/${item.productId}`)}
@@ -182,41 +191,44 @@ const Cart = () => {
                       </p>
                     </div>
                     
-                    {/* Quantity Controls */}
-                    <div className="flex items-center space-x-3">
-                      <button
-                        onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
-                        className="p-2 rounded-xl border border-neutral-300 dark:border-neutral-600 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
-                      >
-                        <MinusIcon className="w-4 h-4" />
-                      </button>
+                    {/* Quantity Controls and Total - Mobile Layout */}
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
+                      {/* Quantity Controls */}
+                      <div className="flex items-center justify-center space-x-3">
+                        <button
+                          onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
+                          className="p-2 rounded-xl border border-neutral-300 dark:border-neutral-600 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+                        >
+                          <MinusIcon className="w-4 h-4" />
+                        </button>
+                        
+                        <span className="w-12 text-center font-semibold text-neutral-900 dark:text-neutral-100">
+                          {item.quantity}
+                        </span>
+                        
+                        <button
+                          onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
+                          className="p-2 rounded-xl border border-neutral-300 dark:border-neutral-600 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+                        >
+                          <PlusIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                       
-                      <span className="w-12 text-center font-semibold text-neutral-900 dark:text-neutral-100">
-                        {item.quantity}
-                      </span>
+                      {/* Item Total */}
+                      <div className="text-center sm:text-right min-w-0">
+                        <p className="text-lg font-bold text-neutral-900 dark:text-neutral-100 truncate">
+                          ${(item.price * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
                       
+                      {/* Remove Button */}
                       <button
-                        onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
-                        className="p-2 rounded-xl border border-neutral-300 dark:border-neutral-600 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+                        onClick={() => handleRemoveItem(item.productId)}
+                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors mx-auto sm:mx-0"
                       >
-                        <PlusIcon className="w-4 h-4" />
+                        <TrashIcon className="w-5 h-5" />
                       </button>
                     </div>
-                    
-                    {/* Item Total */}
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
-                        ${(item.price * item.quantity).toFixed(2)}
-                      </p>
-                    </div>
-                    
-                    {/* Remove Button */}
-                    <button
-                      onClick={() => handleRemoveItem(item.productId)}
-                      className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
-                    >
-                      <TrashIcon className="w-5 h-5" />
-                    </button>
                   </div>
                 </motion.div>
               ))}
