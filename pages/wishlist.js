@@ -4,6 +4,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../firebase/firebase';
 import { getUserWishlist, removeFromWishlist } from '../firebase/storeOperations';
 import { useCart } from '../context/CartContext';
+import { formatLeones, calculateDiscountPercentage } from '../utils/currency';
 import { motion } from 'framer-motion';
 import {
   ArrowLeftIcon,
@@ -73,10 +74,7 @@ const Wishlist = () => {
     return cartItem ? cartItem.quantity : 0;
   };
 
-  const calculateDiscountPercentage = (originalPrice, salePrice) => {
-    if (!originalPrice || originalPrice <= salePrice) return 0;
-    return Math.round(((originalPrice - salePrice) / originalPrice) * 100);
-  };
+
 
   if (loading || isLoading) {
     return (
@@ -229,11 +227,11 @@ const Wishlist = () => {
                     {/* Price */}
                     <div className="flex items-center space-x-2 mb-4">
                       <span className="text-lg font-bold text-primary-600">
-                        ${product.price.toFixed(2)}
+                        {formatLeones(product.price)}
                       </span>
                       {product.originalPrice && product.originalPrice > product.price && (
                         <span className="text-sm text-neutral-500 dark:text-neutral-400 line-through">
-                          ${product.originalPrice.toFixed(2)}
+                          {formatLeones(product.originalPrice)}
                         </span>
                       )}
                     </div>

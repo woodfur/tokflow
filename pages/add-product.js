@@ -402,7 +402,7 @@ const AddProduct = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                      Price *
+                      Price (Le) *
                     </label>
                     <input
                       type="number"
@@ -419,7 +419,7 @@ const AddProduct = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                      Original Price
+                      Original Price (Le)
                     </label>
                     <input
                       type="number"

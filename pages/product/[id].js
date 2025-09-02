@@ -12,6 +12,7 @@ import {
   getProductReviews
 } from '../../firebase/storeOperations';
 import { useCart } from '../../context/CartContext';
+import { formatLeones, calculateDiscountPercentage } from '../../utils/currency';
 import { motion } from 'framer-motion';
 import {
   ArrowLeftIcon,
@@ -198,8 +199,7 @@ const ProductDetail = () => {
   };
 
   const getDiscountPercentage = () => {
-    if (!product.originalPrice || product.originalPrice <= product.price) return 0;
-    return Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+    return calculateDiscountPercentage(product.originalPrice, product.price);
   };
 
   const getStockStatus = () => {
@@ -343,12 +343,12 @@ const ProductDetail = () => {
             {/* Price */}
             <div className="flex items-center space-x-3">
               <span className="text-3xl font-bold text-primary-600">
-                ${product.price.toFixed(2)}
+                {formatLeones(product.price)}
               </span>
               {product.originalPrice && product.originalPrice > product.price && (
                 <>
                   <span className="text-xl text-neutral-500 dark:text-neutral-400 line-through">
-                    ${product.originalPrice.toFixed(2)}
+                    {formatLeones(product.originalPrice)}
                   </span>
                   <span className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 px-2 py-1 rounded-full text-sm font-semibold">
                     {discountPercentage}% OFF

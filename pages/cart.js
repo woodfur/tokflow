@@ -14,6 +14,7 @@ import {
   TruckIcon,
   ShieldCheckIcon
 } from '@heroicons/react/24/outline';
+import { formatLeones, formatShipping } from '../utils/currency';
 
 const Cart = () => {
   const router = useRouter();
@@ -50,9 +51,9 @@ const Cart = () => {
   };
 
   const calculateShipping = () => {
-    // Simple shipping calculation - free shipping over $50, otherwise $5.99
+    // Simple shipping calculation - free shipping over Le 500,000, otherwise Le 59,900
     const subtotal = calculateSubtotal();
-    return subtotal >= 50 ? 0 : 5.99;
+    return subtotal >= 500000 ? 0 : 59900;
   };
 
   const calculateTax = () => {
@@ -187,7 +188,7 @@ const Cart = () => {
                         Sold by {item.storeName}
                       </p>
                       <p className="text-xl font-bold text-primary-600">
-                        ${item.price.toFixed(2)}
+                        {formatLeones(item.price)}
                       </p>
                     </div>
                     
@@ -217,7 +218,7 @@ const Cart = () => {
                       {/* Item Total */}
                       <div className="text-center sm:text-right min-w-0">
                         <p className="text-lg font-bold text-neutral-900 dark:text-neutral-100 truncate">
-                          ${(item.price * item.quantity).toFixed(2)}
+                          {formatLeones(item.price * item.quantity)}
                         </p>
                       </div>
                       
@@ -250,21 +251,21 @@ const Cart = () => {
                   <div className="flex justify-between">
                     <span className="text-neutral-600 dark:text-neutral-400">Subtotal</span>
                     <span className="font-semibold text-neutral-900 dark:text-neutral-100">
-                      ${calculateSubtotal().toFixed(2)}
+                      {formatLeones(calculateSubtotal())}
                     </span>
                   </div>
                   
                   <div className="flex justify-between">
                     <span className="text-neutral-600 dark:text-neutral-400">Shipping</span>
                     <span className="font-semibold text-neutral-900 dark:text-neutral-100">
-                      {calculateShipping() === 0 ? 'Free' : `$${calculateShipping().toFixed(2)}`}
+                      {formatShipping(calculateShipping())}
                     </span>
                   </div>
                   
                   <div className="flex justify-between">
                     <span className="text-neutral-600 dark:text-neutral-400">Tax</span>
                     <span className="font-semibold text-neutral-900 dark:text-neutral-100">
-                      ${calculateTax().toFixed(2)}
+                      {formatLeones(calculateTax())}
                     </span>
                   </div>
                   
@@ -272,7 +273,7 @@ const Cart = () => {
                     <div className="flex justify-between">
                       <span className="text-lg font-bold text-neutral-900 dark:text-neutral-100">Total</span>
                       <span className="text-lg font-bold text-primary-600">
-                        ${calculateTotal().toFixed(2)}
+                        {formatLeones(calculateTotal())}
                       </span>
                     </div>
                   </div>
@@ -288,7 +289,7 @@ const Cart = () => {
                       </p>
                       <p className="text-sm text-neutral-600 dark:text-neutral-400">
                         {calculateShipping() === 0 
-                          ? 'On orders over $50' 
+                          ? 'On orders over Le 500,000' 
                           : '5-7 business days'
                         }
                       </p>

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2025-01-22
 
+### Changed
+- **Currency System Update**: Changed store currency from US Dollars ($) to Sierra Leonean Leones (Le)
+  - Created centralized currency formatting utility (`utils/currency.js`) with functions for Leones formatting
+  - Updated all price displays across the application to use Leones currency
+  - Modified cart page: shipping threshold changed from $50 to Le 500,000, shipping cost from $5.99 to Le 59,900
+  - Updated store page, product detail page, wishlist page, and store management pages
+  - Changed form labels in add-product and edit-product pages to indicate Leones currency
+  - Implemented consistent currency formatting with proper comma separators and "Le" prefix
+
 ### Added
 - **Marketplace Feature Activation**: Enabled full marketplace functionality by removing "Coming Soon" overlay
   - Product browsing and search capabilities
