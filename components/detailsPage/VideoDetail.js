@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import {
   addDoc,
   collection,
@@ -153,7 +154,7 @@ const VideoDetail = ({
         ),
         (snapshot) => setComments(snapshot.docs)
       ),
-    [firestore, id]
+    [id]
   );
 
   useEffect(
@@ -161,7 +162,7 @@ const VideoDetail = ({
       onSnapshot(collection(firestore, "posts", id, "likes"), (snapshot) =>
         setLikes(snapshot.docs)
       ),
-    [firestore, id]
+    [id]
   );
 
   useEffect(
@@ -286,10 +287,12 @@ const VideoDetail = ({
                 className="flex gap-4 mb-4 bg-white w-full pl-10 cursor-pointer"
                 /*    onClick={handleChangePage} */
               >
-                <img
+                <Image
                   alt="user-profile"
                   className="rounded-full w-12 h-12"
                   src={profileImage}
+                  width={48}
+                  height={48}
                 />
                 <div>
                   <div className="text-xl font-bold lowercase tracking-wider flex gap-2 items-center justify-start">
@@ -326,10 +329,12 @@ const VideoDetail = ({
               </div>
               <div className="px-10 py-2.5 flex gap-4">
                 {isPlaying ? (
-                  <img
+                  <Image
                     className="w-5 h-5 animate-spin"
                     src="https://cdn2.iconfinder.com/data/icons/digital-and-internet-marketing-3-1/50/109-512.png"
                     alt="image"
+                    width={20}
+                    height={20}
                   />
                 ) : (
                   <svg

@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { onSnapshot, query, collection, orderBy, doc, where, getDocs, getDoc, setDoc, deleteDoc, updateDoc, increment } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import {
   UserPlusIcon,
   EyeIcon,
@@ -200,9 +201,11 @@ const OtherUserProfile = () => {
         <div className="text-center mb-8">
           <div className="relative inline-block mb-4">
             {userData.photoURL || userData.profileImg ? (
-              <img
+              <Image
                 src={userData.photoURL || userData.profileImg}
                 alt={userData.displayName || userData.username}
+                width={96}
+                height={96}
                 className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-neutral-800 shadow-lg"
               />
             ) : (

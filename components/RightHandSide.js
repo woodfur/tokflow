@@ -24,7 +24,7 @@ const RightHandSide = () => {
       
       return () => unsubscribe();
     },
-    [firestore]
+    []
   );
 
   if (loading) {

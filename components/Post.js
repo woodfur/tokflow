@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import moment from "moment";
 import {
   collection,
@@ -128,7 +129,8 @@ const Post = ({
         audioRef.current.pause();
       }
       // Cleanup reply recording timers
-      Object.values(replyRecordingTimerRef.current).forEach(timer => {
+      const currentTimers = replyRecordingTimerRef.current;
+      Object.values(currentTimers).forEach(timer => {
         if (timer) clearInterval(timer);
       });
     };
@@ -1192,9 +1194,11 @@ const Post = ({
           onClick={() => router.push(`/user/${userId}`)}
         >
           <div className="relative">
-            <img
+            <Image
               src={profileImage || "/default-avatar.png"}
               alt={username}
+              width={48}
+              height={48}
               className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg"
             />
           </div>
@@ -1360,9 +1364,11 @@ const Post = ({
                         transition={{ delay: index * 0.05 }}
                         className="flex items-start space-x-3 group"
                       >
-                        <img
+                        <Image
                           src={commentData.profileImg || commentData.userImage || "/default-avatar.png"}
                           alt={commentData.username}
+                          width={40}
+                          height={40}
                           className="w-10 h-10 rounded-full object-cover border-2 border-white/20 flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">
@@ -1514,9 +1520,11 @@ o looks like we hab                              {showCommentMenu === commentDoc
                                     transition={{ delay: replyIndex * 0.05 }}
                                     className="flex items-start space-x-2"
                                   >
-                                    <img
+                                    <Image
                                       src={replyData.profileImg || "/default-avatar.png"}
                                       alt={replyData.username}
+                                      width={32}
+                                      height={32}
                                       className="w-8 h-8 rounded-full object-cover border border-white/20 flex-shrink-0"
                                     />
                                     <div className="flex-1 min-w-0">
@@ -1675,9 +1683,11 @@ o looks like we hab                              {showCommentMenu === commentDoc
                               className="mt-3 ml-4"
                             >
                               <div className="flex items-start space-x-2">
-                                <img
+                                <Image
                                   src={user?.photoURL || "/default-avatar.png"}
                                   alt={user?.displayName}
+                                  width={32}
+                                  height={32}
                                   className="w-8 h-8 rounded-full object-cover border border-white/20 flex-shrink-0"
                                 />
                                 <div className="flex-1 flex items-end space-x-2">
@@ -1830,9 +1840,11 @@ o looks like we hab                              {showCommentMenu === commentDoc
               <div className="bg-gradient-to-b from-gray-900/95 to-black/95 backdrop-blur-xl border-t border-gray-700/50 p-6 pb-20 md:pb-6">
                 <form onSubmit={addComment} className="flex items-start space-x-4">
                   <div className="relative">
-                    <img
+                    <Image
                       src={user.photoURL}
                       alt={user.displayName}
+                      width={48}
+                      height={48}
                       className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-600/50 shadow-lg"
                     />
 

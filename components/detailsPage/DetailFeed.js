@@ -18,7 +18,7 @@ const DetailFeed = () => {
           setPosts(snapshot.docs);
         }
       ),
-    [firestore]
+    []
   );
   /*   console.log(posts); */
 

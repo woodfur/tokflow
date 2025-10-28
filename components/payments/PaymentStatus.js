@@ -159,7 +159,7 @@ const PaymentStatus = ({
     }, refreshInterval);
 
     return () => clearInterval(interval);
-  }, [currentStatus, currentSessionStatus, orderId, autoRefresh, refreshInterval, checkoutSessionId]);
+  }, [currentStatus, currentSessionStatus, orderId, autoRefresh, refreshInterval, checkoutSessionId, refreshPaymentStatus]);
 
   // Refresh payment status
   const refreshPaymentStatus = async () => {

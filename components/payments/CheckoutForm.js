@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/router';
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -436,10 +437,12 @@ const CheckoutForm = () => {
             <div className="space-y-3 mb-4">
               {cart.items.map((item) => (
                 <div key={item.id} className="flex items-center space-x-3">
-                  <img
+                  <Image
                     src={item.imageUrl || '/default-product.png'}
                     alt={item.name}
                     className="w-12 h-12 object-cover rounded-lg"
+                    width={48}
+                    height={48}
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
