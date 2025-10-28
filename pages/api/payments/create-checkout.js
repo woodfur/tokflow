@@ -6,7 +6,7 @@
 import { createCheckoutSession } from '../../../utils/monime';
 import { auth } from '../../../firebase/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../../firebase/firebase';
+import { firestore as db } from '../../../firebase/firebase';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

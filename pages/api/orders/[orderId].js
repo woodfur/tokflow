@@ -3,7 +3,7 @@
  * Fetches order information by order ID
  */
 
-import { db } from '../../../firebase/firebase';
+import { firestore as db } from '../../../firebase/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 export default async function handler(req, res) {

@@ -5,7 +5,7 @@
 
 import { createPayout } from '../../../utils/monime';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../../firebase/firebase';
+import { firestore as db } from '../../../firebase/firebase';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

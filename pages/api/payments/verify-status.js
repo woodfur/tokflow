@@ -5,7 +5,7 @@
 
 import { getPaymentStatus, getCheckoutSessionStatus } from '../../../utils/monime';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../../firebase/firebase';
+import { firestore as db } from '../../../firebase/firebase';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
