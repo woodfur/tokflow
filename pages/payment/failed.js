@@ -116,7 +116,7 @@ const PaymentFailedPage = () => {
               Payment Failed
             </h1>
             <p className="text-gray-600">
-              We couldn't process your payment. Please try again.
+              We couldn&apos;t process your payment. Please try again.
             </p>
           </motion.div>
 

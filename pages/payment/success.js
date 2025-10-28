@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import Layout from '../../components/Layout';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { formatLeones } from '../../utils/currency';
@@ -105,7 +106,7 @@ const PaymentSuccessPage = () => {
               Order Not Found
             </h2>
             <p className="text-gray-600 mb-6">
-              We couldn't find the order details. Please check your order ID.
+              We couldn&apos;t find the order details. Please check your order ID.
             </p>
             <Link
               href="/orders"
@@ -163,9 +164,11 @@ const PaymentSuccessPage = () => {
             <div className="space-y-4 mb-6">
               {orderDetails.items?.map((item, index) => (
                 <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                  <img
+                  <Image
                     src={item.imageUrl || '/default-product.png'}
                     alt={item.name}
+                    width={64}
+                    height={64}
                     className="w-16 h-16 object-cover rounded-lg"
                   />
                   <div className="flex-1">
@@ -260,11 +263,11 @@ const PaymentSuccessPage = () => {
           >
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <TruckIcon className="w-5 h-5 mr-2" />
-              What's Next?
+              What&apos;s Next?
             </h3>
             <div className="space-y-3 text-sm text-gray-700">
               <p>• You will receive an order confirmation email shortly</p>
-              <p>• We'll send you tracking information once your order ships</p>
+              <p>• We&apos;ll send you tracking information once your order ships</p>
               <p>• Estimated delivery: 5-7 business days</p>
               <p>• Questions? Contact our support team</p>
             </div>
