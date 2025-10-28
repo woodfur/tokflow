@@ -15,7 +15,7 @@ import {
   ShieldCheckIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import { formatLeones, formatShipping } from '../utils/currency';
+import { formatLeones } from '../utils/currency';
 
 const Cart = () => {
   const router = useRouter();
@@ -73,24 +73,18 @@ const Cart = () => {
     return cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
-  const calculateShipping = () => {
-    // Simple shipping calculation - free shipping over Le 500,000, otherwise Le 59,900
-    const subtotal = calculateSubtotal();
-    return subtotal >= 500000 ? 0 : 59900;
-  };
-
   const calculateTax = () => {
     // Simple tax calculation - 8.5%
     return calculateSubtotal() * 0.085;
   };
 
   const calculateTotal = () => {
-    return calculateSubtotal() + calculateShipping() + calculateTax();
+    return calculateSubtotal() + calculateTax();
   };
 
   const handleCheckout = () => {
-    // For now, just show an alert. In a real app, this would integrate with a payment processor
-    alert('Checkout functionality would be implemented here with a payment processor like Stripe.');
+    // Redirect to checkout page which handles Monime checkout session creation
+    router.push('/checkout');
   };
 
   if (loading) {
@@ -281,13 +275,6 @@ const Cart = () => {
                   </div>
                   
                   <div className="flex justify-between">
-                    <span className="text-neutral-600 dark:text-neutral-400">Shipping</span>
-                    <span className="font-semibold text-neutral-900 dark:text-neutral-100">
-                      {formatShipping(calculateShipping())}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between">
                     <span className="text-neutral-600 dark:text-neutral-400">Tax</span>
                     <span className="font-semibold text-neutral-900 dark:text-neutral-100">
                       {formatLeones(calculateTax())}
@@ -304,19 +291,16 @@ const Cart = () => {
                   </div>
                 </div>
                 
-                {/* Shipping Info */}
+                {/* Delivery Info */}
                 <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-2xl p-4 mb-6 space-y-3">
                   <div className="flex items-center space-x-3">
                     <TruckIcon className="w-5 h-5 text-primary-600" />
                     <div>
                       <p className="font-medium text-neutral-900 dark:text-neutral-100">
-                        {calculateShipping() === 0 ? 'Free Shipping' : 'Standard Shipping'}
+                        Local Delivery Available
                       </p>
                       <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                        {calculateShipping() === 0 
-                          ? 'On orders over Le 500,000' 
-                          : '5-7 business days'
-                        }
+                        Delivery times vary by product and location
                       </p>
                     </div>
                   </div>

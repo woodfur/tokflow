@@ -105,7 +105,8 @@ export const ProductSchema = {
   // Product details
   specifications: 'object', // Key-value pairs for product specs
   tags: 'array', // Array of tags for search
-  weight: 'number', // For shipping calculations
+  deliveryTime: 'string', // Local delivery time estimate (e.g., "Same-day delivery", "Within 3 hours")
+  weight: 'number', // For reference only
   dimensions: {
     length: 'number',
     width: 'number',

@@ -73,12 +73,7 @@ const EditProduct = () => {
     tags: [],
     features: [],
     specifications: {},
-    shippingInfo: {
-      freeShipping: false,
-      shippingCost: '',
-      processingTime: '',
-      shippingMethods: []
-    },
+    deliveryTime: '', // Local delivery time estimate
     isActive: true,
     allowReturns: true,
     returnPolicy: '30 days'
@@ -146,12 +141,7 @@ const EditProduct = () => {
             tags: productData.tags || [],
             features: productData.features || [],
             specifications: productData.specifications || {},
-            shippingInfo: {
-              freeShipping: productData.shippingInfo?.freeShipping || false,
-              shippingCost: productData.shippingInfo?.shippingCost?.toString() || '',
-              processingTime: productData.shippingInfo?.processingTime || '',
-              shippingMethods: productData.shippingInfo?.shippingMethods || []
-            },
+            deliveryTime: productData.deliveryTime || '', // Local delivery time estimate
             isActive: productData.isActive !== undefined ? productData.isActive : true,
             allowReturns: productData.allowReturns !== undefined ? productData.allowReturns : true,
             returnPolicy: productData.returnPolicy || '30 days'
@@ -292,10 +282,7 @@ const EditProduct = () => {
           width: formData.dimensions.width ? parseFloat(formData.dimensions.width) : null,
           height: formData.dimensions.height ? parseFloat(formData.dimensions.height) : null
         },
-        shippingInfo: {
-          ...formData.shippingInfo,
-          shippingCost: formData.shippingInfo.shippingCost ? parseFloat(formData.shippingInfo.shippingCost) : 0
-        },
+        deliveryTime: formData.deliveryTime, // Local delivery time estimate
         thumbnail: formData.images[0] || null,
         updatedAt: new Date()
       };
@@ -716,7 +703,7 @@ const EditProduct = () => {
                 </div>
               </motion.div>
 
-              {/* Shipping Information */}
+              {/* Delivery Information */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -724,53 +711,25 @@ const EditProduct = () => {
                 className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-sm rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 p-6"
               >
                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
-                  Shipping
+                  Delivery Information
                 </h3>
                 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                      Free Shipping
-                    </label>
-                    <input
-                      type="checkbox"
-                      name="shippingInfo.freeShipping"
-                      checked={formData.shippingInfo.freeShipping}
-                      onChange={handleInputChange}
-                      className="w-4 h-4 text-primary-600 bg-neutral-100 border-neutral-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-neutral-800 focus:ring-2 dark:bg-neutral-700 dark:border-neutral-600"
-                    />
-                  </div>
-                  
-                  {!formData.shippingInfo.freeShipping && (
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                        Shipping Cost
-                      </label>
-                      <input
-                        type="number"
-                        name="shippingInfo.shippingCost"
-                        value={formData.shippingInfo.shippingCost}
-                        onChange={handleInputChange}
-                        step="0.01"
-                        min="0"
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white/50 dark:bg-neutral-700/50 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm"
-                        placeholder="0.00"
-                      />
-                    </div>
-                  )}
-                  
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                      Processing Time
+                      Delivery Time
                     </label>
                     <input
                       type="text"
-                      name="shippingInfo.processingTime"
-                      value={formData.shippingInfo.processingTime}
+                      name="deliveryTime"
+                      value={formData.deliveryTime}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white/50 dark:bg-neutral-700/50 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm"
-                      placeholder="e.g., 1-2 business days"
+                      placeholder="e.g., Same-day delivery, Next business day, Within 3 hours"
                     />
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                      Specify the estimated delivery time for local customers
+                    </p>
                   </div>
                   
                   <div>

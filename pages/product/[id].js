@@ -37,7 +37,7 @@ const ProductDetail = () => {
   const router = useRouter();
   const { id } = router.query;
   const [user, loading, error] = useAuthState(auth);
-  const { addToCart, cart } = useCart();
+  const { addItemToCart, cart } = useCart();
   
   const [product, setProduct] = useState(null);
   const [store, setStore] = useState(null);
@@ -111,7 +111,7 @@ const ProductDetail = () => {
     }
     
     try {
-      await addToCart({
+      await addItemToCart({
         productId: product.id,
         name: product.name,
         price: product.price,
@@ -445,14 +445,14 @@ const ProductDetail = () => {
               
               <div className="flex space-x-4">
                 <button
-                  onClick={handleAddToCart}
+                  onClick={isInCart ? () => router.push('/cart') : handleAddToCart}
                   disabled={product.stock === 0 || (user && product.sellerId === user.uid)}
                   className="flex-1 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 disabled:from-neutral-400 disabled:to-neutral-500 text-white py-4 px-6 rounded-2xl font-semibold transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
                   <ShoppingCartIcon className="w-5 h-5" />
                   <span>
                     {isInCart
-                      ? `In Cart (${cartItem.quantity})`
+                      ? `View Cart (${cartItem.quantity})`
                       : product.stock === 0
                       ? 'Out of Stock'
                       : user && product.sellerId === user.uid
@@ -482,13 +482,11 @@ const ProductDetail = () => {
                 <TruckIcon className="w-5 h-5 text-primary-600" />
                 <div>
                   <p className="font-medium text-neutral-900 dark:text-neutral-100">
-                    {product.shippingInfo?.freeShipping ? 'Free Shipping' : `Shipping: $${product.shippingInfo?.shippingCost || 0}`}
+                    Delivery Time
                   </p>
-                  {product.shippingInfo?.processingTime && (
-                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                      Processing time: {product.shippingInfo.processingTime}
-                    </p>
-                  )}
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                    {product.deliveryTime || 'Contact store for delivery details'}
+                  </p>
                 </div>
               </div>
               
