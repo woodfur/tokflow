@@ -120,37 +120,38 @@ export const createCheckoutSession = async (checkoutData) => {
   }, 0);
 
   const payload = {
-    line_items: lineItems.map(item => ({
-      name: item.name,
-      description: item.description || '',
-      price: parseFloat(item.price),
-      quantity: parseInt(item.quantity),
-      image_url: item.imageUrl || null
-    })),
-    order_number: orderNumber || orderId,
-    currency: MONIME_CONFIG.currency,
+    name: description || `TokFlo Store - Order ${orderNumber || orderId}`,
+    orderNumber: orderNumber || orderId,
+    reference: orderId,
     description: description || `TokFlo Store - Order ${orderNumber || orderId}`,
-    customer: {
-      email: customerEmail,
-      phone: customerPhone,
-      name: customerName || ''
+    successUrl: successUrl || `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: cancelUrl || `${process.env.NEXT_PUBLIC_BASE_URL}/payment/cancel`,
+    lineItems: {
+      data: lineItems.map(item => ({
+        type: 'custom',
+        name: item.name,
+        description: item.description || '',
+        price: {
+          currency: MONIME_CONFIG.currency,
+          value: parseFloat(item.price)
+        },
+        quantity: parseInt(item.quantity),
+        reference: item.id || item.name.toLowerCase().replace(/\s+/g, '_'),
+        images: item.imageUrl ? [item.imageUrl] : []
+      }))
+    },
+    brandingOptions: {
+      primaryColor: '#3B82F6' // TokFlo blue
     },
     metadata: {
       orderId,
       orderNumber: orderNumber || orderId,
       source: 'tokflo_store',
       totalAmount,
+      customerEmail,
+      customerPhone,
+      customerName: customerName || '',
       ...metadata
-    },
-    success_url: successUrl || `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: cancelUrl || `${process.env.NEXT_PUBLIC_BASE_URL}/payment/cancel`,
-    webhook_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/payments/webhook`,
-    // Enable all payment methods for better conversion
-    payment_methods: ['mobile_money', 'card', 'bank_transfer'],
-    // Branding options for better user experience
-    branding: {
-      primary_color: '#3B82F6', // TokFlo blue
-      logo_url: `${process.env.NEXT_PUBLIC_BASE_URL}/tokflo-favicon.svg`
     }
   };
 
