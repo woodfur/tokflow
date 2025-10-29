@@ -3,7 +3,7 @@
  * Creates a checkout session with Monime for processing customer payments
  */
 
-import { createCheckoutSession } from '../../../utils/monime';
+import { createCheckoutSession, testMonimeConnection } from '../../../utils/monime';
 import { auth } from '../../../firebase/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore as db } from '../../../firebase/firebase';
@@ -17,6 +17,21 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('=== CREATE CHECKOUT API CALLED ===');
+    console.log('Request body:', req.body);
+
+    // Test Monime connection first
+    console.log('=== TESTING MONIME CONNECTION ===');
+    try {
+      await testMonimeConnection();
+      console.log('✅ Monime connection test passed');
+    } catch (connectionError) {
+      console.error('❌ Monime connection test failed:', connectionError);
+      return res.status(500).json({ 
+        error: 'Payment service unavailable',
+        details: connectionError.message 
+      });
+    }
     const {
       cartItems,
       totalAmount,
@@ -86,6 +101,31 @@ export default async function handler(req, res) {
     // Create checkout session with Monime
     const checkoutResponse = await createCheckoutSession(checkoutData);
 
+    // DEBUG: Log the complete Monime response to see what fields are available
+    console.log('=== MONIME CHECKOUT RESPONSE DEBUG ===');
+    console.log('Full response:', JSON.stringify(checkoutResponse, null, 2));
+    console.log('Available fields:', Object.keys(checkoutResponse || {}));
+    console.log('checkoutResponse.url:', checkoutResponse?.url);
+    console.log('checkoutResponse.checkout_url:', checkoutResponse?.checkout_url);
+    console.log('checkoutResponse.hosted_url:', checkoutResponse?.hosted_url);
+    console.log('checkoutResponse.payment_url:', checkoutResponse?.payment_url);
+    console.log('=====================================');
+
+    // Try to find the correct URL field
+    const checkoutUrl = checkoutResponse?.url || 
+                       checkoutResponse?.checkout_url || 
+                       checkoutResponse?.hosted_url || 
+                       checkoutResponse?.payment_url ||
+                       checkoutResponse?.redirect_url ||
+                       null;
+
+    if (!checkoutUrl) {
+      console.error('❌ NO CHECKOUT URL FOUND in Monime response!');
+      throw new Error('Monime did not return a checkout URL. Check API credentials and response format.');
+    }
+
+    console.log('✅ Found checkout URL:', checkoutUrl);
+
     // Store order in Firebase with checkout session data
     const orderData = {
       orderId,
@@ -98,7 +138,7 @@ export default async function handler(req, res) {
       deliveryAddress,
       paymentMethod: paymentMethod || 'mobile_money',
       checkoutSessionId: checkoutResponse.id,
-      checkoutUrl: checkoutResponse.url,
+      checkoutUrl: checkoutUrl,
       paymentStatus: 'pending',
       orderStatus: 'pending_payment',
       expiresAt: checkoutResponse.expires_at,
@@ -124,7 +164,7 @@ export default async function handler(req, res) {
       orderId,
       orderNumber,
       sessionId: checkoutResponse.id,
-      checkoutUrl: checkoutResponse.url,
+      checkoutUrl: checkoutUrl,
       amount: totalAmount,
       currency: checkoutResponse.currency || 'SLE',
       expiresAt: checkoutResponse.expires_at,

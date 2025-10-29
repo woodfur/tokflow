@@ -42,6 +42,7 @@ export const createMonimeHeaders = (idempotencyKey = null) => {
   const headers = {
     'Authorization': `Bearer ${MONIME_CONFIG.apiToken}`,
     'Monime-Space-Id': MONIME_CONFIG.spaceId,
+    'Monime-Version': 'caph.2025-08-23', // Required API version header
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   };
@@ -51,6 +52,32 @@ export const createMonimeHeaders = (idempotencyKey = null) => {
   }
 
   return headers;
+};
+
+/**
+ * Test API credentials and connection
+ * @returns {Promise<Object>} API status response
+ */
+export const testMonimeConnection = async () => {
+  try {
+    const response = await fetch('https://api.monime.io', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${MONIME_CONFIG.apiToken}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    console.log('=== MONIME CONNECTION TEST ===');
+    console.log('Status:', response.status);
+    console.log('Response:', data);
+    
+    return data;
+  } catch (error) {
+    console.error('Monime connection test failed:', error);
+    throw error;
+  }
 };
 
 /**
@@ -72,9 +99,18 @@ export const generateIdempotencyKey = (orderId, operation = 'payment') => {
 export const monimeApiRequest = async (endpoint, options = {}) => {
   const url = `${MONIME_CONFIG.baseUrl}${endpoint}`;
   
+  console.log('=== MONIME API REQUEST DEBUG ===');
+  console.log('URL:', url);
+  console.log('Method:', options.method || 'GET');
+  console.log('Headers:', {
+    ...createMonimeHeaders(options.idempotencyKey),
+    ...options.headers
+  });
+  console.log('Body:', options.body);
+  
   try {
     const response = await fetch(url, {
-      method: 'GET',
+      method: options.method || 'GET',
       ...options,
       headers: {
         ...createMonimeHeaders(options.idempotencyKey),
@@ -83,14 +119,56 @@ export const monimeApiRequest = async (endpoint, options = {}) => {
     });
 
     const data = await response.json();
+    
+    console.log('=== MONIME API RESPONSE DEBUG ===');
+    console.log('Status:', response.status);
+    console.log('Response data:', data);
 
     if (!response.ok) {
-      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+      console.error('=== MONIME API ERROR ===');
+      console.error('Status:', response.status);
+      console.error('Status Text:', response.statusText);
+      console.error('Error data:', data);
+      
+      // Enhanced error handling with specific Monime error details
+      const errorMessage = data.error?.message || data.message?.message || data.message || data.error || `HTTP error! status: ${response.status}`;
+      const errorDetails = {
+        status: response.status,
+        statusText: response.statusText,
+        message: errorMessage,
+        details: data.details || data.error?.details || null,
+        code: data.code || data.error?.code || data.message?.code || null,
+        type: data.type || null,
+        param: data.param || null,
+        requestId: data.request_id || response.headers.get('x-request-id') || null,
+        fullResponse: data // Include full response for debugging
+      };
+      
+      console.error('Enhanced error details:', errorDetails);
+      
+      // Create a more informative error
+      const error = new Error(`Monime API Error: ${errorMessage}`);
+      error.monimeError = errorDetails;
+      error.status = response.status;
+      
+      throw error;
     }
 
     return data;
   } catch (error) {
-    console.error('Monime API request failed:', error);
+    console.error('=== MONIME API REQUEST FAILED ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    
+    if (error.monimeError) {
+      console.error('Monime-specific error details:', error.monimeError);
+    }
+    
+    // Network or other fetch errors
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      console.error('Network error - check internet connection and API URL');
+    }
+    
     throw error;
   }
 };
@@ -101,6 +179,9 @@ export const monimeApiRequest = async (endpoint, options = {}) => {
  * @returns {Promise<Object>} Checkout session response
  */
 export const createCheckoutSession = async (checkoutData) => {
+  console.log('=== CREATE CHECKOUT SESSION DEBUG ===');
+  console.log('Input checkoutData:', checkoutData);
+  
   const {
     lineItems,
     orderId,
@@ -111,49 +192,46 @@ export const createCheckoutSession = async (checkoutData) => {
     description,
     metadata = {},
     successUrl,
-    cancelUrl
+    cancelUrl,
+    callbackState
   } = checkoutData;
 
-  // Calculate total amount from line items
-  const totalAmount = lineItems.reduce((sum, item) => {
-    return sum + (item.price * item.quantity);
-  }, 0);
+  // Helper function to convert SLE to minor units (cents)
+  const toMinorUnits = (amountSLE) => {
+    return Math.round(amountSLE * 100);
+  };
 
+  // Build the payload according to Monime documentation
   const payload = {
     name: description || `TokFlo Store - Order ${orderNumber || orderId}`,
-    orderNumber: orderNumber || orderId,
-    reference: orderId,
-    description: description || `TokFlo Store - Order ${orderNumber || orderId}`,
-    successUrl: successUrl || `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: cancelUrl || `${process.env.NEXT_PUBLIC_BASE_URL}/payment/cancel`,
-    lineItems: {
-      data: lineItems.map(item => ({
-        type: 'custom',
-        name: item.name,
-        description: item.description || '',
-        price: {
-          currency: MONIME_CONFIG.currency,
-          value: parseFloat(item.price)
-        },
-        quantity: parseInt(item.quantity),
-        reference: item.id || item.name.toLowerCase().replace(/\s+/g, '_'),
-        images: item.imageUrl ? [item.imageUrl] : []
-      }))
-    },
-    brandingOptions: {
-      primaryColor: '#3B82F6' // TokFlo blue
-    },
+    successUrl: successUrl || `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
+    cancelUrl: cancelUrl || `${process.env.NEXT_PUBLIC_BASE_URL}/payment/cancel?order_id=${orderId}`,
+    lineItems: lineItems.map(item => ({
+      type: 'custom',
+      name: item.name,
+      price: {
+        currency: MONIME_CONFIG.currency,
+        value: toMinorUnits(parseFloat(item.price)) // Convert to minor units
+      },
+      quantity: parseInt(item.quantity),
+      description: item.description || undefined, // Optional field
+      reference: item.id || item.name.toLowerCase().replace(/\s+/g, '_') || undefined // Optional field
+    })),
     metadata: {
       orderId,
       orderNumber: orderNumber || orderId,
       source: 'tokflo_store',
-      totalAmount,
       customerEmail,
       customerPhone,
       customerName: customerName || '',
       ...metadata
-    }
+    },
+    callbackState: callbackState || `order_${orderId}` // Optional field for correlation
   };
+
+  console.log('=== CHECKOUT SESSION PAYLOAD (CORRECTED) ===');
+  console.log('Payload:', JSON.stringify(payload, null, 2));
+  console.log('MONIME_CONFIG:', MONIME_CONFIG);
 
   return await monimeApiRequest('/checkout-sessions', {
     method: 'POST',
@@ -288,5 +366,6 @@ export default {
   getPaymentStatus, // Legacy support
   createPayout,
   verifyWebhookSignature,
-  formatAmount
+  formatAmount,
+  testMonimeConnection
 };
