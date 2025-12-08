@@ -24,6 +24,18 @@ const PaymentMethodSelector = ({
 
   const paymentMethods = [
     {
+      id: PAYMENT_METHODS.PAYMENT_ON_DELIVERY,
+      name: 'Payment on Delivery',
+      description: 'Pay cash when your order is delivered to your location',
+      icon: BanknotesIcon,
+      popular: true,
+      color: 'bg-green-50 border-green-200 text-green-800',
+      hoverColor: 'hover:bg-green-100',
+      selectedColor: 'bg-green-100 border-green-400'
+    }
+    // Commenting out other payment methods for now - focus on payment on delivery
+    /*
+    {
       id: PAYMENT_METHODS.MOBILE_MONEY,
       name: 'Mobile Money',
       description: 'Pay with Orange Money, Africell Money, or other mobile wallets',
@@ -63,6 +75,7 @@ const PaymentMethodSelector = ({
       hoverColor: 'hover:bg-purple-100',
       selectedColor: 'bg-purple-100 border-purple-400'
     }
+    */
   ];
 
   const handleMethodSelect = (method) => {

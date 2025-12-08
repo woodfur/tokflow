@@ -20,7 +20,8 @@ export const PAYMENT_METHODS = {
   MOBILE_MONEY: 'mobile_money',
   CARD: 'card',
   BANK: 'bank',
-  DIGITAL_WALLET: 'digital_wallet'
+  DIGITAL_WALLET: 'digital_wallet',
+  PAYMENT_ON_DELIVERY: 'payment_on_delivery'
 };
 
 // Payment Status

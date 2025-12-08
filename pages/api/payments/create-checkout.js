@@ -80,22 +80,22 @@ export default async function handler(req, res) {
       metadata: {
         orderId,
         orderNumber,
-        customerName: customerInfo.name,
-        customerId: customerInfo.userId,
-        itemCount: cartItems.length,
+        customerName: customerInfo.name || '',
+        customerId: customerInfo.userId || '',
+        itemCount: cartItems.length.toString(),
         paymentMethod: paymentMethod || 'mobile_money',
-        deliveryAddress: deliveryAddress ? JSON.stringify(deliveryAddress) : null,
+        deliveryAddress: deliveryAddress ? JSON.stringify(deliveryAddress) : '',
         cartItems: JSON.stringify(cartItems.map(item => ({
           productId: item.id,
           name: item.name,
-          quantity: item.quantity,
-          price: item.price,
+          quantity: item.quantity.toString(),
+          price: item.price.toString(),
           sellerId: item.sellerId,
           category: item.category
         })))
       },
-      successUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
-      cancelUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/cancel?order_id=${orderId}`
+      successUrl: `${req.headers.origin || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/payment/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
+      cancelUrl: `${req.headers.origin || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/payment/cancel?order_id=${orderId}`
     };
 
     // Create checkout session with Monime
@@ -109,14 +109,32 @@ export default async function handler(req, res) {
     console.log('checkoutResponse.checkout_url:', checkoutResponse?.checkout_url);
     console.log('checkoutResponse.hosted_url:', checkoutResponse?.hosted_url);
     console.log('checkoutResponse.payment_url:', checkoutResponse?.payment_url);
+    console.log('checkoutResponse.redirectUrl:', checkoutResponse?.redirectUrl);
+    console.log('checkoutResponse.redirect_url:', checkoutResponse?.redirect_url);
+    console.log('checkoutResponse.result:', checkoutResponse?.result);
+    if (checkoutResponse?.result) {
+      console.log('checkoutResponse.result fields:', Object.keys(checkoutResponse.result));
+      console.log('checkoutResponse.result.redirectUrl:', checkoutResponse.result.redirectUrl);
+      console.log('checkoutResponse.result.url:', checkoutResponse.result.url);
+      console.log('checkoutResponse.result.checkout_url:', checkoutResponse.result.checkout_url);
+      console.log('checkoutResponse.result.hosted_url:', checkoutResponse.result.hosted_url);
+      console.log('checkoutResponse.result.payment_url:', checkoutResponse.result.payment_url);
+    }
     console.log('=====================================');
 
-    // Try to find the correct URL field
-    const checkoutUrl = checkoutResponse?.url || 
+    // Try to find the correct URL field - Monime API returns redirectUrl in result object
+    // Based on terminal logs, the checkout URL is in redirectUrl field
+    const checkoutUrl = checkoutResponse?.redirectUrl || 
+                       checkoutResponse?.result?.redirectUrl ||
+                       checkoutResponse?.url || 
                        checkoutResponse?.checkout_url || 
                        checkoutResponse?.hosted_url || 
                        checkoutResponse?.payment_url ||
                        checkoutResponse?.redirect_url ||
+                       checkoutResponse?.result?.url ||
+                       checkoutResponse?.result?.checkout_url ||
+                       checkoutResponse?.result?.hosted_url ||
+                       checkoutResponse?.result?.payment_url ||
                        null;
 
     if (!checkoutUrl) {
@@ -137,11 +155,11 @@ export default async function handler(req, res) {
       totalAmount,
       deliveryAddress,
       paymentMethod: paymentMethod || 'mobile_money',
-      checkoutSessionId: checkoutResponse.id,
+      checkoutSessionId: checkoutResponse?.result?.id || checkoutResponse?.id,
       checkoutUrl: checkoutUrl,
       paymentStatus: 'pending',
       orderStatus: 'pending_payment',
-      expiresAt: checkoutResponse.expires_at,
+      expiresAt: checkoutResponse?.expires_at || checkoutResponse?.result?.expires_at || null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
@@ -150,8 +168,9 @@ export default async function handler(req, res) {
     await setDoc(doc(db, 'orders', orderId), orderData);
 
     // Log successful checkout session creation
+    const sessionId = checkoutResponse?.result?.id || checkoutResponse?.id;
     console.log(`Checkout session created for order: ${orderId}`, {
-      sessionId: checkoutResponse.id,
+      sessionId: sessionId,
       orderNumber,
       amount: totalAmount,
       customer: customerInfo.email,
@@ -163,7 +182,7 @@ export default async function handler(req, res) {
       success: true,
       orderId,
       orderNumber,
-      sessionId: checkoutResponse.id,
+      sessionId: sessionId,
       checkoutUrl: checkoutUrl,
       amount: totalAmount,
       currency: checkoutResponse.currency || 'SLE',

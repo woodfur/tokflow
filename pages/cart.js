@@ -99,6 +99,8 @@ const Cart = () => {
     return null;
   }
 
+  const [activeTab, setActiveTab] = useState('cart');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900">
       <div className="container mx-auto px-4 py-8">
@@ -109,24 +111,46 @@ const Cart = () => {
             className="flex items-center space-x-2 text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
           >
             <ArrowLeftIcon className="w-5 h-5" />
-            <span>Continue Shopping</span>
           </button>
           
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100 mb-2 flex items-center justify-center space-x-3">
-              <ShoppingCartIcon className="w-8 h-8" />
-              <span>Shopping Cart</span>
-            </h1>
-            <p className="text-neutral-600 dark:text-neutral-400">
-              {cart.items.length} item{cart.items.length !== 1 ? 's' : ''} in your cart
-            </p>
+          {/* Tab Navigation */}
+          <div className="flex space-x-1 bg-white/50 dark:bg-neutral-800/50 backdrop-blur-sm rounded-xl p-1 border border-neutral-200/50 dark:border-neutral-700/50">
+            <button
+              onClick={() => setActiveTab('cart')}
+              className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'cart'
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <ShoppingCartIcon className="w-4 h-4" />
+                <span>Cart ({cart.items.length})</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'history'
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span>Order History</span>
+              </div>
+            </button>
           </div>
           
           <div>
-            {cart.items.length > 0 && (
+            {activeTab === 'cart' && cart.items.length > 0 && (
               <button
                 onClick={handleClearCart}
-                className="text-red-500 hover:text-red-700 transition-colors"
+                className="text-red-500 hover:text-red-700 transition-colors text-sm"
               >
                 Clear Cart
               </button>

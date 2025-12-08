@@ -41,7 +41,7 @@ const CheckoutForm = () => {
   });
   
   // Payment state
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(PAYMENT_METHODS.MOBILE_MONEY);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(PAYMENT_METHODS.PAYMENT_ON_DELIVERY);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [orderId, setOrderId] = useState(null);
@@ -187,32 +187,66 @@ const CheckoutForm = () => {
         paymentMethod: selectedPaymentMethod
       };
 
-      // Create payment checkout
-      const response = await fetch('/api/payments/create-checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(checkoutData)
-      });
+      // Handle payment on delivery differently
+      if (selectedPaymentMethod === PAYMENT_METHODS.PAYMENT_ON_DELIVERY) {
+        // Create delivery order
+        const response = await fetch('/api/orders/create-delivery-order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(checkoutData)
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to create payment');
-      }
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to create delivery order');
+        }
 
-      // Store payment information
-      setOrderId(data.orderId);
-      setCheckoutSessionId(data.sessionId);
-      setPaymentStatus('pending');
-      setSessionStatus('pending');
-
-      // Redirect to Monime checkout session
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+        // Store order information
+        setOrderId(data.orderId);
+        setPaymentStatus('pending');
+        
+        // Redirect to order confirmation page
+        if (data.orderId) {
+          window.location.href = `/order/confirmation/${data.orderId}`;
+        } else {
+          toast.error('Order ID not received');
+        }
       } else {
-        toast.error('Checkout URL not received');
+        // Original Monime payment flow (commented out for now)
+        /*
+        const response = await fetch('/api/payments/create-checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(checkoutData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to create payment');
+        }
+
+        // Store payment information
+        setOrderId(data.orderId);
+        setCheckoutSessionId(data.sessionId);
+        setPaymentStatus('pending');
+        setSessionStatus('pending');
+
+        // Redirect to Monime checkout session
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+        } else {
+          toast.error('Checkout URL not received');
+        }
+        */
+        
+        // For now, show message that other payment methods are disabled
+        toast.error('Other payment methods are temporarily disabled. Please use Payment on Delivery.');
       }
 
     } catch (error) {
